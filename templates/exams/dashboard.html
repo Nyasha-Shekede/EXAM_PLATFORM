@@ -3,66 +3,87 @@
 
 {% block content %}
 {% if staff_summary %}
-<!-- Instructor / Staff Hub -->
+<!-- ====================================================
+     INSTRUCTOR / STAFF OVERVIEW
+     ==================================================== -->
 <div class="pagehead">
-  <div>
-    <p class="eyebrow">Instructor & Training Operations</p>
-    <h1>Academy Overview</h1>
-  </div>
+  <h1>Academy Overview</h1>
   <div style="display: flex; gap: 0.6rem; flex-wrap: wrap;">
-    <a class="primary" href="{% url 'import_questions' %}">📥 Bulk Import Questions</a>
-    <a class="secondary" href="{% url 'admin:exams_exam_add' %}">➕ New Exam</a>
-    <a class="secondary" href="{% url 'admin:exams_assignment_add' %}">🎯 Assign Candidate</a>
+    <a class="primary" href="{% url 'import_questions' %}">Bulk Import Questions</a>
+    <a class="secondary" href="{% url 'admin:exams_exam_add' %}">New Exam</a>
+    <a class="secondary" href="{% url 'admin:exams_assignment_add' %}">Assign Candidate</a>
   </div>
 </div>
 
-<!-- Key Academy Metrics -->
-<section class="grid" style="margin-bottom: 2.2rem;">
-  <article class="card" style="border-left: 4px solid var(--adk-blue);">
-    <div class="cardtop">
-      <span class="eyebrow">Active Curricula</span>
-      <a href="{% url 'admin:exams_exam_changelist' %}" style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--adk-blue); text-decoration: none;">Manage →</a>
-    </div>
-    <div style="font-size: 2.2rem; font-weight: 800; color: var(--ink);">{{ staff_summary.exams_count }}</div>
-    <p class="muted" style="margin: 0.2rem 0 0; font-size: 0.85rem;">Total examinations created</p>
-  </article>
+<!-- Compact Metrics Table -->
+<div class="tablewrap" style="margin-bottom: 2.5rem;">
+  <table>
+    <thead>
+      <tr>
+        <th>Active Examinations</th>
+        <th>Question Bank</th>
+        <th>Enrolled Candidates</th>
+        <th>Completed Submissions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>
+          <div style="font-size: 1.6rem; font-weight: 800; color: var(--ink);">{{ staff_summary.exams_count }}</div>
+          <a href="{% url 'admin:exams_exam_changelist' %}" style="color: var(--adk-blue); font-size: 0.8rem; font-weight: 700; text-decoration: none;">Manage Exams →</a>
+        </td>
+        <td>
+          <div style="font-size: 1.6rem; font-weight: 800; color: var(--ink);">{{ staff_summary.questions_count }}</div>
+          <a href="{% url 'admin:exams_question_changelist' %}" style="color: var(--adk-blue); font-size: 0.8rem; font-weight: 700; text-decoration: none;">View Questions →</a>
+        </td>
+        <td>
+          <div style="font-size: 1.6rem; font-weight: 800; color: var(--ink);">{{ staff_summary.candidates_count }}</div>
+          <a href="{% url 'admin:auth_user_changelist' %}" style="color: var(--adk-blue); font-size: 0.8rem; font-weight: 700; text-decoration: none;">Manage Users →</a>
+        </td>
+        <td>
+          <div style="font-size: 1.6rem; font-weight: 800; color: var(--ink);">{{ staff_summary.completed_attempts }}</div>
+          <a href="{% url 'admin:exams_attempt_changelist' %}" style="color: var(--adk-blue); font-size: 0.8rem; font-weight: 700; text-decoration: none;">Audit Log →</a>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 
-  <article class="card" style="border-left: 4px solid #0284c7;">
-    <div class="cardtop">
-      <span class="eyebrow">Question Bank</span>
-      <a href="{% url 'admin:exams_question_changelist' %}" style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--adk-blue); text-decoration: none;">View Pool →</a>
+<!-- Academy Examinations -->
+<section style="margin-bottom: 2.5rem;">
+  <div class="pagehead" style="margin-bottom: 1.2rem;">
+    <h2>Examinations</h2>
+    <a class="secondary" href="{% url 'admin:exams_exam_changelist' %}">Manage All Exams</a>
+  </div>
+  <div class="grid">
+    {% for exam in staff_summary.all_exams %}
+    <article class="card">
+      <div class="cardtop">
+        <span class="badge">{{ exam.module.code }}</span>
+        <span>{{ exam.duration_minutes }} min</span>
+      </div>
+      <h2>{{ exam.title }}</h2>
+      <p class="muted">{{ exam.question_count }} questions · Pass mark {{ exam.pass_mark }}% · Max attempts: {{ exam.max_attempts }}</p>
+      <div style="display: flex; gap: 0.5rem; margin-top: 1.2rem;">
+        <a class="secondary" href="{% url 'admin:exams_assignment_add' %}" style="flex: 1; font-size: 0.78rem; padding: 0.5rem;">Assign Student</a>
+        <a class="secondary" href="{% url 'admin:exams_exam_change' exam.id %}" style="font-size: 0.78rem; padding: 0.5rem;">Edit</a>
+      </div>
+    </article>
+    {% empty %}
+    <div class="empty" style="grid-column: 1 / -1;">
+      <h2>No Examinations Created Yet</h2>
+      <p class="muted">Create your first examination to begin assigning candidates.</p>
+      <a class="primary" href="{% url 'admin:exams_exam_add' %}" style="margin-top: 1rem;">Create Examination</a>
     </div>
-    <div style="font-size: 2.2rem; font-weight: 800; color: var(--ink);">{{ staff_summary.questions_count }}</div>
-    <p class="muted" style="margin: 0.2rem 0 0; font-size: 0.85rem;">Questions with answers & diagrams</p>
-  </article>
-
-  <article class="card" style="border-left: 4px solid #059669;">
-    <div class="cardtop">
-      <span class="eyebrow">Enrolled Students</span>
-      <a href="{% url 'admin:auth_user_changelist' %}" style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--adk-blue); text-decoration: none;">Users →</a>
-    </div>
-    <div style="font-size: 2.2rem; font-weight: 800; color: var(--ink);">{{ staff_summary.candidates_count }}</div>
-    <p class="muted" style="margin: 0.2rem 0 0; font-size: 0.85rem;">Candidate student accounts</p>
-  </article>
-
-  <article class="card" style="border-left: 4px solid #7c3aed;">
-    <div class="cardtop">
-      <span class="eyebrow">Submissions</span>
-      <a href="{% url 'admin:exams_attempt_changelist' %}" style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--adk-blue); text-decoration: none;">Audit Log →</a>
-    </div>
-    <div style="font-size: 2.2rem; font-weight: 800; color: var(--ink);">{{ staff_summary.completed_attempts }}</div>
-    <p class="muted" style="margin: 0.2rem 0 0; font-size: 0.85rem;">Marked candidate attempts</p>
-  </article>
+    {% endfor %}
+  </div>
 </section>
 
 <!-- Recent Candidate Submissions Feed -->
 {% if staff_summary.all_recent %}
 <section style="margin-bottom: 2.5rem;">
   <div class="pagehead" style="margin-bottom: 1rem;">
-    <div>
-      <p class="eyebrow">Live Results</p>
-      <h2>Recent Candidate Submissions</h2>
-    </div>
+    <h2>Recent Candidate Submissions</h2>
     <a class="secondary" href="{% url 'admin:exams_attempt_changelist' %}">Full Results Log</a>
   </div>
   <div class="tablewrap">
@@ -71,11 +92,11 @@
         <tr>
           <th>Candidate</th>
           <th>Examination</th>
-          <th>Attempt #</th>
+          <th>Attempt</th>
           <th>Submitted</th>
           <th>Score</th>
           <th>Status</th>
-          <th>Slip</th>
+          <th>Action</th>
         </tr>
       </thead>
       <tbody>
@@ -101,17 +122,14 @@
   </div>
 </section>
 {% endif %}
-{% endif %}
 
-<!-- Candidate Examinations Section -->
+{% else %}
+<!-- ====================================================
+     CANDIDATE / STUDENT VIEW ONLY
+     ==================================================== -->
 <div class="pagehead">
-  <div>
-    <p class="eyebrow">{% if staff_summary %}Self-Testing & Assigned Exams{% else %}Training & Assessment{% endif %}</p>
-    <h1>{% if staff_summary %}My Examination Assignments{% else %}My Examinations{% endif %}</h1>
-  </div>
-  {% if not staff_summary %}
+  <h1>My Examinations</h1>
   <p class="muted">Review your assigned tests, available attempts, and official scorecards.</p>
-  {% endif %}
 </div>
 
 <section class="grid">
@@ -137,12 +155,12 @@
   {% empty %}
   <div class="empty" style="grid-column: 1 / -1;">
     <h2>No Examinations Currently Assigned</h2>
-    <p class="muted">{% if staff_summary %}You do not have any active exam assignments for your personal user account. Use the quick actions above to manage the academy.{% else %}Contact your Africa Drone Kings instructor if you expected an exam assignment.{% endif %}</p>
+    <p class="muted">Contact your Africa Drone Kings instructor if you expected an exam assignment.</p>
   </div>
   {% endfor %}
 </section>
 
-{% if recent and not staff_summary %}
+{% if recent %}
 <section style="margin-top: 3rem;">
   <h2>My Completed Attempts</h2>
   <div class="tablewrap">
@@ -176,5 +194,6 @@
     </table>
   </div>
 </section>
+{% endif %}
 {% endif %}
 {% endblock %}

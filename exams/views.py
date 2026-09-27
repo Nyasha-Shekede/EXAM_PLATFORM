@@ -43,6 +43,7 @@ def dashboard(request):
             "candidates_count":User.objects.filter(is_staff=False).count(),
             "completed_attempts":Attempt.objects.exclude(status=Attempt.IN_PROGRESS).count(),
             "all_recent":Attempt.objects.exclude(status=Attempt.IN_PROGRESS).select_related("exam","candidate").order_by("-submitted_at")[:8],
+            "all_exams":Exam.objects.select_related("module").order_by("-created_at")[:12],
         }
     return render(request,"exams/dashboard.html",{"rows":rows,"recent":recent,"staff_summary":staff_summary})
 @login_required
@@ -53,7 +54,11 @@ def begin(request,exam_id):
     except ValidationError as e: messages.error(request,"; ".join(e.messages)); return redirect("dashboard")
     return redirect("question",attempt_id=attempt.id,position=1)
 
-def owned_attempt(user,pk): return get_object_or_404(Attempt.objects.select_related("exam","candidate"),pk=pk,candidate=user)
+def owned_attempt(user, pk, allow_staff=False):
+    qs = Attempt.objects.select_related("exam", "candidate")
+    if allow_staff and user.is_staff:
+        return get_object_or_404(qs, pk=pk)
+    return get_object_or_404(qs, pk=pk, candidate=user)
 @login_required
 def question(request,attempt_id,position):
     attempt=owned_attempt(request.user,attempt_id)
@@ -96,7 +101,7 @@ def finish(request,attempt_id):
     return redirect("result",attempt_id=attempt.id)
 @login_required
 def result(request,attempt_id):
-    attempt=owned_attempt(request.user,attempt_id)
+    attempt=owned_attempt(request.user,attempt_id,allow_staff=True)
     if attempt.status==Attempt.IN_PROGRESS: return redirect("question",attempt.id,1)
     category={}
     for aq in attempt.attempt_questions.select_related("response"):
@@ -104,26 +109,27 @@ def result(request,attempt_id):
     return render(request,"exams/result.html",{"attempt":attempt,"category":category.items()})
 @login_required
 def review(request,attempt_id):
-    attempt=owned_attempt(request.user,attempt_id)
-    if attempt.status==Attempt.IN_PROGRESS or not attempt.exam.show_answers_after: raise Http404
+    attempt=owned_attempt(request.user,attempt_id,allow_staff=True)
+    if attempt.status==Attempt.IN_PROGRESS: raise Http404
+    if not request.user.is_staff and not attempt.exam.show_answers_after: raise Http404
     return render(request,"exams/review.html",{"attempt":attempt,"questions":attempt.attempt_questions.prefetch_related("snapshot_options","response")})
 @login_required
 def result_pdf(request,attempt_id):
-    attempt=owned_attempt(request.user,attempt_id)
+    attempt=owned_attempt(request.user,attempt_id,allow_staff=True)
     if attempt.status==Attempt.IN_PROGRESS: raise Http404
     response=HttpResponse(content_type="application/pdf"); response["Content-Disposition"]=f'attachment; filename="{attempt.exam.code}-attempt-{attempt.attempt_number}.pdf"'
-    styles=getSampleStyleSheet(); title=ParagraphStyle("Title2",parent=styles["Title"],fontName="Helvetica-Bold",fontSize=20,textColor=colors.HexColor("#12372A"),alignment=TA_CENTER)
+    styles=getSampleStyleSheet(); title=ParagraphStyle("Title2",parent=styles["Title"],fontName="Helvetica-Bold",fontSize=20,textColor=colors.HexColor("#1483C6"),alignment=TA_CENTER)
     doc=SimpleDocTemplate(response,pagesize=A4,rightMargin=20*mm,leftMargin=20*mm,topMargin=18*mm,bottomMargin=18*mm,title="Examination Result Slip")
     story=[Paragraph("Examination Result Slip",title),Spacer(1,8*mm),Paragraph(settings.SITE_NAME,styles["Heading2"])]
     data=[["Candidate",attempt.candidate.get_full_name() or attempt.candidate.username],["Candidate ID",attempt.candidate.username],["Examination",attempt.exam.title],["Module",attempt.exam.module.title],["Attempt",str(attempt.attempt_number)],["Started",attempt.started_at.strftime("%Y-%m-%d %H:%M %Z")],["Submitted",attempt.submitted_at.strftime("%Y-%m-%d %H:%M %Z")],["Score",f"{attempt.score} / {attempt.max_score}"],["Percentage",f"{attempt.percentage}%"],["Pass mark",f"{attempt.exam.pass_mark}%"],["Result","PASS" if attempt.passed else "FAIL"]]
-    t=Table(data,colWidths=[45*mm,105*mm]); t.setStyle(TableStyle([("BACKGROUND",(0,0),(0,-1),colors.HexColor("#E7F0EC")),("GRID",(0,0),(-1,-1),0.5,colors.HexColor("#AAB8B1")),("FONTNAME",(0,0),(0,-1),"Helvetica-Bold"),("VALIGN",(0,0),(-1,-1),"TOP"),("PADDING",(0,0),(-1,-1),7)])); story += [t,Spacer(1,10*mm),Paragraph("Verification hash",styles["Heading3"]),Paragraph(attempt.verification_code,ParagraphStyle("hash",parent=styles["BodyText"],fontName="Courier",fontSize=7,wordWrap="CJK")),Spacer(1,4*mm),Paragraph("This slip records the result held by the examination system. Verify against the portal record; the hash alone is not a digital signature.",styles["BodyText"])]
+    t=Table(data,colWidths=[45*mm,105*mm]); t.setStyle(TableStyle([("BACKGROUND",(0,0),(0,-1),colors.HexColor("#E8F4FC")),("GRID",(0,0),(-1,-1),0.5,colors.HexColor("#CBD5E1")),("FONTNAME",(0,0),(0,-1),"Helvetica-Bold"),("VALIGN",(0,0),(-1,-1),"TOP"),("PADDING",(0,0),(-1,-1),7)])); story += [t,Spacer(1,10*mm),Paragraph("Verification hash",styles["Heading3"]),Paragraph(attempt.verification_code,ParagraphStyle("hash",parent=styles["BodyText"],fontName="Courier",fontSize=7,wordWrap="CJK")),Spacer(1,4*mm),Paragraph("This slip records the result held by the examination system. Verify against the portal record; the hash alone is not a digital signature.",styles["BodyText"])]
     doc.build(story); audit("RESULT_PDF_DOWNLOADED",attempt,request.user,{},client_ip(request)); return response
 
 def staff_required(u): return u.is_active and u.is_staff
 
 @login_required
 def attempt_image(request,attempt_id,position):
-    attempt=owned_attempt(request.user,attempt_id)
+    attempt=owned_attempt(request.user,attempt_id,allow_staff=True)
     aq=get_object_or_404(AttemptQuestion,attempt=attempt,position=position)
     if not aq.image_name or not default_storage.exists(aq.image_name): raise Http404
     content_type={".png":"image/png",".jpg":"image/jpeg",".jpeg":"image/jpeg",".webp":"image/webp"}.get(__import__("pathlib").Path(aq.image_name).suffix.lower(),"application/octet-stream")

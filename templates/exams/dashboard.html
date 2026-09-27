@@ -9,9 +9,9 @@
 <div class="pagehead">
   <h1>Academy Overview</h1>
   <div style="display: flex; gap: 0.6rem; flex-wrap: wrap;">
-    <a class="primary" href="{% url 'import_questions' %}">Bulk Import Questions</a>
-    <a class="secondary" href="{% url 'admin:exams_exam_add' %}">New Exam</a>
+    <a class="primary" href="{% url 'create_exam' %}">Create Examination</a>
     <a class="secondary" href="{% url 'admin:exams_assignment_add' %}">Assign Candidate</a>
+    <a class="secondary" href="{% url 'admin:index' %}">Manage Portal</a>
   </div>
 </div>
 
@@ -28,21 +28,21 @@
     </thead>
     <tbody>
       <tr>
-        <td>
-          <div style="font-size: 1.6rem; font-weight: 800; color: var(--ink);">{{ staff_summary.exams_count }}</div>
-          <a href="{% url 'admin:exams_exam_changelist' %}" style="color: var(--adk-blue); font-size: 0.8rem; font-weight: 700; text-decoration: none;">Manage Exams →</a>
+        <td style="padding: 1.2rem;">
+          <div style="font-size: 1.85rem; font-weight: 800; color: var(--ink); line-height: 1.1;">{{ staff_summary.exams_count }}</div>
+          <a href="{% url 'admin:exams_exam_changelist' %}" style="display: inline-block; margin-top: 0.35rem; color: var(--adk-blue); font-size: 0.8rem; font-weight: 700; text-decoration: none;">Manage Exams →</a>
         </td>
-        <td>
-          <div style="font-size: 1.6rem; font-weight: 800; color: var(--ink);">{{ staff_summary.questions_count }}</div>
-          <a href="{% url 'admin:exams_question_changelist' %}" style="color: var(--adk-blue); font-size: 0.8rem; font-weight: 700; text-decoration: none;">View Questions →</a>
+        <td style="padding: 1.2rem;">
+          <div style="font-size: 1.85rem; font-weight: 800; color: var(--ink); line-height: 1.1;">{{ staff_summary.questions_count }}</div>
+          <a href="{% url 'admin:exams_question_changelist' %}" style="display: inline-block; margin-top: 0.35rem; color: var(--adk-blue); font-size: 0.8rem; font-weight: 700; text-decoration: none;">View Questions →</a>
         </td>
-        <td>
-          <div style="font-size: 1.6rem; font-weight: 800; color: var(--ink);">{{ staff_summary.candidates_count }}</div>
-          <a href="{% url 'admin:auth_user_changelist' %}" style="color: var(--adk-blue); font-size: 0.8rem; font-weight: 700; text-decoration: none;">Manage Users →</a>
+        <td style="padding: 1.2rem;">
+          <div style="font-size: 1.85rem; font-weight: 800; color: var(--ink); line-height: 1.1;">{{ staff_summary.candidates_count }}</div>
+          <a href="{% url 'admin:auth_user_changelist' %}" style="display: inline-block; margin-top: 0.35rem; color: var(--adk-blue); font-size: 0.8rem; font-weight: 700; text-decoration: none;">Manage Users →</a>
         </td>
-        <td>
-          <div style="font-size: 1.6rem; font-weight: 800; color: var(--ink);">{{ staff_summary.completed_attempts }}</div>
-          <a href="{% url 'admin:exams_attempt_changelist' %}" style="color: var(--adk-blue); font-size: 0.8rem; font-weight: 700; text-decoration: none;">Audit Log →</a>
+        <td style="padding: 1.2rem;">
+          <div style="font-size: 1.85rem; font-weight: 800; color: var(--ink); line-height: 1.1;">{{ staff_summary.completed_attempts }}</div>
+          <a href="{% url 'admin:exams_attempt_changelist' %}" style="display: inline-block; margin-top: 0.35rem; color: var(--adk-blue); font-size: 0.8rem; font-weight: 700; text-decoration: none;">Audit Log →</a>
         </td>
       </tr>
     </tbody>
@@ -50,9 +50,9 @@
 </div>
 
 <!-- Academy Examinations -->
-<section style="margin-bottom: 2.5rem;">
+<section style="margin-bottom: 2.8rem;">
   <div class="pagehead" style="margin-bottom: 1.2rem;">
-    <h2>Examinations</h2>
+    <h2 class="section-title">Examinations</h2>
     <a class="secondary" href="{% url 'admin:exams_exam_changelist' %}">Manage All Exams</a>
   </div>
   <div class="grid">
@@ -62,7 +62,7 @@
         <span class="badge">{{ exam.module.code }}</span>
         <span>{{ exam.duration_minutes }} min</span>
       </div>
-      <h2>{{ exam.title }}</h2>
+      <h3>{{ exam.title }}</h3>
       <p class="muted">{{ exam.question_count }} questions · Pass mark {{ exam.pass_mark }}% · Max attempts: {{ exam.max_attempts }}</p>
       <div style="display: flex; gap: 0.5rem; margin-top: 1.2rem;">
         <a class="secondary" href="{% url 'admin:exams_assignment_add' %}" style="flex: 1; font-size: 0.78rem; padding: 0.5rem;">Assign Student</a>
@@ -73,7 +73,7 @@
     <div class="empty" style="grid-column: 1 / -1;">
       <h2>No Examinations Created Yet</h2>
       <p class="muted">Create your first examination to begin assigning candidates.</p>
-      <a class="primary" href="{% url 'admin:exams_exam_add' %}" style="margin-top: 1rem;">Create Examination</a>
+      <a class="primary" href="{% url 'create_exam' %}" style="margin-top: 1rem;">Create Examination</a>
     </div>
     {% endfor %}
   </div>
@@ -81,9 +81,9 @@
 
 <!-- Recent Candidate Submissions Feed -->
 {% if staff_summary.all_recent %}
-<section style="margin-bottom: 2.5rem;">
-  <div class="pagehead" style="margin-bottom: 1rem;">
-    <h2>Recent Candidate Submissions</h2>
+<section style="margin-bottom: 2.8rem;">
+  <div class="pagehead" style="margin-bottom: 1.2rem;">
+    <h2 class="section-title">Recent Candidate Submissions</h2>
     <a class="secondary" href="{% url 'admin:exams_attempt_changelist' %}">Full Results Log</a>
   </div>
   <div class="tablewrap">
@@ -139,7 +139,7 @@
       <span class="badge">{{ row.exam.module.code }}</span>
       <span>{{ row.exam.duration_minutes }} min</span>
     </div>
-    <h2>{{ row.exam.title }}</h2>
+    <h3>{{ row.exam.title }}</h3>
     <p class="muted">{{ row.exam.question_count }} questions · Pass mark {{ row.exam.pass_mark }}% · {{ row.remaining }} attempt{{ row.remaining|pluralize }} remaining</p>
     {% if row.open %}
     <a class="primary" href="{% url 'question' row.open.id 1 %}">Resume Attempt</a>
@@ -162,7 +162,9 @@
 
 {% if recent %}
 <section style="margin-top: 3rem;">
-  <h2>My Completed Attempts</h2>
+  <div class="pagehead" style="margin-bottom: 1.2rem;">
+    <h2 class="section-title">My Completed Attempts</h2>
+  </div>
   <div class="tablewrap">
     <table>
       <thead>

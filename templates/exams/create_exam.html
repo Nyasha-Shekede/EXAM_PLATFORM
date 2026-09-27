@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Create Examination · Africa Drone Kings{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Create Examination</h1>
+  </div>
+  <a class="secondary" href="{% url 'dashboard' %}">← Back to Overview</a>
+</div>
+
+{% if import_errors %}
+<div class="notice error" style="margin-bottom: 2rem;">
+  <strong>Questions spreadsheet could not be imported:</strong>
+  <ul style="margin: 0.5rem 0 0 1.2rem; padding: 0;">
+    {% for err in import_errors %}
+    <li>Row {{ err.row }}: {{ err.errors|join:", " }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data" class="stack" style="max-width: 820px;">
+  {% csrf_token %}
+
+  <!-- Step 1: Exam Configuration -->
+  <fieldset class="card" style="border: 1px solid var(--line);">
+    <legend style="font-weight: 700; color: var(--ink); padding: 0 0.5rem; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.05em;">1. Examination Details</legend>
+    <div class="stack">
+      <label>
+        Examination Title
+        {{ form.title }}
+      </label>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
+        <label>
+          Duration (Minutes)
+          {{ form.duration_minutes }}
+        </label>
+        <label>
+          Pass Mark (%)
+          {{ form.pass_mark }}
+        </label>
+        <label>
+          Allowed Attempts
+          {{ form.max_attempts }}
+        </label>
+      </div>
+      <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; margin-top: 0.5rem;">
+        {{ form.show_answers_after }}
+        <span>Allow candidates to review correct answers and solutions after submission</span>
+      </label>
+    </div>
+  </fieldset>
+
+  <!-- Step 2: Upload Questions -->
+  <fieldset class="card" style="border: 1px solid var(--line);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+      <legend style="font-weight: 700; color: var(--ink); padding: 0 0.5rem; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.05em;">2. Upload Questions</legend>
+      <a href="{% url 'import_template' %}" style="font-size: 0.82rem; font-weight: 700; color: var(--adk-blue); text-decoration: none;">📄 Download Excel Template</a>
+    </div>
+    <div class="stack">
+      <label>
+        Question Spreadsheet (.xlsx or .csv)
+        {{ form.spreadsheet }}
+        <small class="muted" style="display: block; margin-top: 0.3rem;">Fill questions into the 10-column Excel sheet. They will be imported and published automatically for this exam.</small>
+      </label>
+      <label>
+        Diagram Images (Optional)
+        {{ form.images }}
+        <small class="muted" style="display: block; margin-top: 0.3rem;">If any questions refer to pictures, select all referenced PNG/JPEG files here at once.</small>
+      </label>
+    </div>
+  </fieldset>
+
+  <!-- Step 3: Assign Candidates -->
+  <fieldset class="card" style="border: 1px solid var(--line);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+      <legend style="font-weight: 700; color: var(--ink); padding: 0 0.5rem; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.05em;">3. Assign Candidates</legend>
+      <button type="button" id="select-all-btn" class="secondary" style="font-size: 0.75rem; padding: 0.3rem 0.7rem;">Select All Students</button>
+    </div>
+    {% if form.candidates.field.queryset %}
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.6rem; max-height: 240px; overflow-y: auto; padding: 0.5rem; border: 1px solid var(--line); border-radius: 8px;">
+      {% for pk, choice_label in form.candidates.field.choices %}
+      <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.88rem; cursor: pointer; padding: 0.3rem;">
+        <input type="checkbox" name="candidates" value="{{ pk }}" class="candidate-checkbox">
+        <span>{{ choice_label }}</span>
+      </label>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="muted">No candidate student accounts found. You can assign candidates later in the dashboard.</p>
+    {% endif %}
+  </fieldset>
+
+  <div style="display: flex; gap: 1rem; align-items: center; margin-top: 1rem;">
+    <button class="primary" type="submit" style="padding: 0.9rem 1.8rem; font-size: 0.9rem;">Create Examination & Import Questions</button>
+    <a class="secondary" href="{% url 'dashboard' %}">Cancel</a>
+  </div>
+</form>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const btn = document.getElementById("select-all-btn");
+  if (btn) {
+    btn.addEventListener("click", function() {
+      const boxes = document.querySelectorAll(".candidate-checkbox");
+      const anyUnchecked = Array.from(boxes).some(b => !b.checked);
+      boxes.forEach(b => b.checked = anyUnchecked);
+      btn.textContent = anyUnchecked ? "Deselect All" : "Select All Students";
+    });
+  }
+});
+</script>
+{% endblock %}

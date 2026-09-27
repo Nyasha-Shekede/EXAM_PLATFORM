@@ -11,11 +11,16 @@
 </div>
 {% endblock %}
 
-{% block nav-global %}
-<div style="margin-left: auto; display: flex; align-items: center; gap: 12px;">
-  <a href="{% url 'dashboard' %}" style="color: #1483c6; font-weight: 700; text-transform: uppercase; font-size: 12px; letter-spacing: 0.05em; text-decoration: none; padding: 7px 14px; background: #e8f4fc; border-radius: 6px; border: 1px solid #bfdbfe; transition: background 0.15s;">← Candidate & Staff Portal</a>
-</div>
+{% block userlinks %}
+  <span style="font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #1483c6; background: #e8f4fc; padding: 4px 10px; border-radius: 6px; border: 1px solid #bfdbfe; margin-right: 12px;">INSTRUCTOR</span>
+  <a href="{% url 'dashboard' %}" style="margin-right: 14px; color: #1483c6; font-weight: 700; text-decoration: none; font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase;">PORTAL</a>
+  <form id="logout-form" method="post" action="{% url 'admin:logout' %}" style="display: inline;">
+    {% csrf_token %}
+    <button type="submit" style="background: none; border: 1px solid #e2e8f0; color: #64748b; font-family: inherit; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 4px 10px; border-radius: 6px; cursor: pointer;">Sign Out</button>
+  </form>
 {% endblock %}
+
+{% block nav-global %}{% endblock %}
 
 {% block extrastyle %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -67,12 +72,8 @@
     color: #64748b !important;
     font-weight: 600 !important;
     font-size: 13px !important;
-  }
-  #user-tools a {
-    color: #1483c6 !important;
-    font-weight: 700 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.05em !important;
+    display: flex !important;
+    align-items: center !important;
   }
   .module, .inline-group {
     background: #ffffff !important;

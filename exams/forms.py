@@ -56,3 +56,78 @@ class ImportForm(forms.Form):
         if sum(getattr(f, "size", 0) for f in items if f) > MAX_TOTAL_UPLOAD:
             raise forms.ValidationError("The spreadsheet and pictures exceed the 25 MB upload limit.")
         return cleaned
+
+
+class CreateExamForm(forms.Form):
+    title = forms.CharField(
+        label="Examination Title",
+        max_length=180,
+        widget=forms.TextInput(attrs={"placeholder": "e.g. Multi-Rotor Remote Pilot Ground School"}),
+    )
+    duration_minutes = forms.IntegerField(
+        label="Time Limit (Minutes)",
+        initial=30,
+        min_value=1,
+        max_value=480,
+    )
+    pass_mark = forms.DecimalField(
+        label="Pass Mark (%)",
+        initial=75,
+        min_value=0,
+        max_value=100,
+    )
+    max_attempts = forms.IntegerField(
+        label="Allowed Attempts Per Student",
+        initial=1,
+        min_value=1,
+        max_value=10,
+    )
+    show_answers_after = forms.BooleanField(
+        label="Allow students to review answer solutions after submission",
+        initial=False,
+        required=False,
+    )
+    spreadsheet = forms.FileField(
+        label="Question Spreadsheet (.xlsx or .csv)",
+        widget=forms.ClearableFileInput(attrs={"accept": ".xlsx,.csv"}),
+        required=True,
+    )
+    images = MultipleFileField(
+        required=False,
+        label="Question Diagrams / Pictures (Optional)",
+    )
+    candidates = forms.ModelMultipleChoiceField(
+        queryset=None,
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        label="Assign to Students Immediately",
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        self.fields["candidates"].queryset = User.objects.filter(is_staff=False).order_by("username")
+
+    def clean_spreadsheet(self):
+        f = self.cleaned_data["spreadsheet"]
+        if f.size > 12 * 1024 * 1024:
+            raise forms.ValidationError("The spreadsheet exceeds 12 MB.")
+        if not f.name.lower().endswith((".csv", ".xlsx")):
+            raise forms.ValidationError("Use an XLSX or CSV spreadsheet.")
+        return f
+
+    def clean_images(self):
+        files = self.cleaned_data.get("images", [])
+        seen = set()
+        for f in files:
+            name = f.name.rsplit("/", 1)[-1]
+            if name.lower() in seen:
+                raise forms.ValidationError(f"Two selected pictures have the same filename: {name}.")
+            seen.add(name.lower())
+            if f.size > 5 * 1024 * 1024:
+                raise forms.ValidationError(f"{name} exceeds 5 MB.")
+            if not name.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
+                raise forms.ValidationError(f"{name} is not a PNG, JPEG, or WebP image.")
+        return files
+

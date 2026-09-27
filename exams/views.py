@@ -18,7 +18,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from .forms import ImportForm
+from .forms import CreateExamForm, ImportForm
 from .importers import import_simple_questions
 from .models import Assignment, Attempt, AttemptQuestion, Exam, Question, Response
 from .services import client_ip,save_response,start_attempt,submit_attempt,audit
@@ -189,9 +189,9 @@ def template_download(request):
     for index, (heading, width) in enumerate(zip(headings, widths), 1):
         cell = sheet.cell(1, index)
         cell.font = Font(bold=True, color="FFFFFF")
-        cell.fill = PatternFill("solid", fgColor="156B52")
+        cell.fill = PatternFill("solid", fgColor="1483C6")
         cell.alignment = Alignment(vertical="center")
-        cell.comment = Comment(notes[heading], "Exam Platform")
+        cell.comment = Comment(notes[heading], "Africa Drone Kings")
         sheet.column_dimensions[cell.column_letter].width = width
     sheet.row_dimensions[1].height = 28
     # Blank formatted rows make it obvious where to type without importing examples by accident.
@@ -205,12 +205,70 @@ def template_download(request):
     guide.append(["1", "Fill one question per row on the Questions sheet."])
     guide.append(["2", "For one correct answer type A, B, C, or D. For multiple correct answers type A,C (comma-separated)."])
     guide.append(["3", "Pictures are optional. Put the exact filename in Image and select the picture when uploading the sheet."])
-    guide.append(["4", "Upload once. Valid rows are imported as drafts for instructor review."])
+    guide.append(["4", "Upload when creating an exam to automatically import, publish, and assign to students."])
     for cell in guide[1]:
         cell.font = Font(bold=True, color="FFFFFF")
-        cell.fill = PatternFill("solid", fgColor="156B52")
+        cell.fill = PatternFill("solid", fgColor="1483C6")
     stream = io.BytesIO()
     workbook.save(stream)
     response = HttpResponse(stream.getvalue(), content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    response["Content-Disposition"] = 'attachment; filename="SIMPLE_QUESTION_TEMPLATE.xlsx"'
+    response["Content-Disposition"] = 'attachment; filename="AFRICA_DRONE_KINGS_QUESTION_TEMPLATE.xlsx"'
     return response
+
+
+@user_passes_test(staff_required)
+def create_exam_view(request):
+    import uuid, re
+    from .models import Module, Category
+    if request.method == "POST":
+        form = CreateExamForm(request.POST, request.FILES)
+        if form.is_valid():
+            title = form.cleaned_data["title"]
+            duration = form.cleaned_data["duration_minutes"]
+            pass_mark = form.cleaned_data["pass_mark"]
+            max_attempts = form.cleaned_data["max_attempts"]
+            show_answers = form.cleaned_data["show_answers_after"]
+            spreadsheet = form.cleaned_data["spreadsheet"]
+            images = form.cleaned_data["images"]
+            candidates = form.cleaned_data["candidates"]
+
+            # Import questions from spreadsheet
+            res = import_simple_questions(spreadsheet, images, request.user)
+            if not res["ok"]:
+                return render(request, "exams/create_exam.html", {"form": form, "import_errors": res["errors"]})
+
+            imported_count = res["imported"]
+            latest_q = Question.objects.filter(created_by=request.user).order_by("-created_at").first()
+            module = latest_q.module if latest_q else Module.objects.first()
+
+            # Ensure all questions under this module are PUBLISHED so the exam can be taken immediately
+            Question.objects.filter(module=module, status=Question.DRAFT).update(status=Question.PUBLISHED)
+            published_pool = Question.objects.filter(module=module, status=Question.PUBLISHED).count()
+
+            exam_code = re.sub(r'[^A-Za-z0-9_-]', '', title.upper().replace(' ', '-'))[:40] or f"EXAM-{uuid.uuid4().hex[:8].upper()}"
+            if Exam.objects.filter(code=exam_code).exists():
+                exam_code = f"{exam_code[:30]}-{uuid.uuid4().hex[:6].upper()}"
+
+            exam = Exam.objects.create(
+                code=exam_code,
+                title=title,
+                module=module,
+                duration_minutes=duration,
+                pass_mark=pass_mark,
+                max_attempts=max_attempts,
+                question_count=min(imported_count, published_pool),
+                show_answers_after=show_answers,
+                status=Exam.PUBLISHED,
+            )
+
+            # Assign selected candidates
+            for candidate in candidates:
+                Assignment.objects.get_or_create(exam=exam, candidate=candidate)
+
+            messages.success(request, f"Examination '{title}' created with {imported_count} questions and assigned to {len(candidates)} student(s)!")
+            return redirect("dashboard")
+    else:
+        form = CreateExamForm()
+
+    return render(request, "exams/create_exam.html", {"form": form})
+

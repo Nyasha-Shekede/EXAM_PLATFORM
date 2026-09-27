@@ -26,6 +26,12 @@ class AssignmentAdmin(admin.ModelAdmin):
     search_fields = ("exam__title", "candidate__username", "candidate__first_name", "candidate__last_name")
     autocomplete_fields = ["exam", "candidate"]
 
+    def get_changeform_initial_data(self, request):
+        initial = super().get_changeform_initial_data(request)
+        if "exam" in request.GET:
+            initial["exam"] = request.GET["exam"]
+        return initial
+
 @admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):
     list_display = ("code", "module", "question_type", "difficulty", "status", "version", "updated_at")

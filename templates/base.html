@@ -19,6 +19,9 @@
     </a>
     {% if user.is_authenticated %}
     <div class="user">
+      {% if user.is_staff %}
+      <a class="secondary" href="{% url 'admin:index' %}" style="padding: 0.4rem 0.85rem; font-size: 0.8rem;">Manage Portal</a>
+      {% endif %}
       <span class="role-badge">{% if user.is_staff %}INSTRUCTOR{% else %}STUDENT{% endif %}</span>
       <form method="post" action="{% url 'logout' %}">
         {% csrf_token %}

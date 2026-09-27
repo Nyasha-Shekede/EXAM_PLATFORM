@@ -6,15 +6,6 @@
 <!-- ====================================================
      INSTRUCTOR / STAFF OVERVIEW
      ==================================================== -->
-<div class="pagehead">
-  <h1>Academy Overview</h1>
-  <div style="display: flex; gap: 0.6rem; flex-wrap: wrap;">
-    <a class="primary" href="{% url 'create_exam' %}">Create Examination</a>
-    <a class="secondary" href="{% url 'admin:exams_assignment_add' %}">Assign Candidate</a>
-    <a class="secondary" href="{% url 'admin:index' %}">Manage Portal</a>
-  </div>
-</div>
-
 <!-- Compact Metrics Table -->
 <div class="tablewrap" style="margin-bottom: 2.5rem;">
   <table>
@@ -53,7 +44,10 @@
 <section style="margin-bottom: 2.8rem;">
   <div class="pagehead" style="margin-bottom: 1.2rem;">
     <h2 class="section-title">Examinations</h2>
-    <a class="secondary" href="{% url 'admin:exams_exam_changelist' %}">Manage All Exams</a>
+    <div style="display: flex; gap: 0.6rem; align-items: center;">
+      <a class="primary" href="{% url 'create_exam' %}" style="padding: 0.55rem 1.1rem; font-size: 0.82rem;">Create Examination</a>
+      <a class="secondary" href="{% url 'admin:exams_exam_changelist' %}" style="padding: 0.55rem 1.1rem; font-size: 0.82rem;">Manage All Exams</a>
+    </div>
   </div>
   <div class="grid">
     {% for exam in staff_summary.all_exams %}
@@ -65,8 +59,8 @@
       <h3>{{ exam.title }}</h3>
       <p class="muted">{{ exam.question_count }} questions · Pass mark {{ exam.pass_mark }}% · Max attempts: {{ exam.max_attempts }}</p>
       <div style="display: flex; gap: 0.5rem; margin-top: 1.2rem;">
-        <a class="secondary" href="{% url 'admin:exams_exam_change' exam.id %}" style="flex: 1; font-size: 0.78rem; padding: 0.5rem;">Assign Candidates</a>
-        <a class="secondary" href="{% url 'admin:exams_exam_change' exam.id %}" style="font-size: 0.78rem; padding: 0.5rem;">Edit Exam</a>
+        <a class="secondary" href="{% url 'admin:exams_assignment_add' %}?exam={{ exam.id }}" style="flex: 1; font-size: 0.78rem; padding: 0.5rem; text-align: center;">Add Candidate</a>
+        <a class="secondary" href="{% url 'admin:exams_exam_change' exam.id %}" style="font-size: 0.78rem; padding: 0.5rem; text-align: center;">Edit</a>
       </div>
     </article>
     {% empty %}
@@ -83,7 +77,7 @@
 {% if staff_summary.all_recent %}
 <section style="margin-bottom: 2.8rem;">
   <div class="pagehead" style="margin-bottom: 1.2rem;">
-    <h2 class="section-title">Recent Candidate Submissions</h2>
+    <h2 class="section-title">Candidate Submissions</h2>
     <a class="secondary" href="{% url 'admin:exams_attempt_changelist' %}">Full Results Log</a>
   </div>
   <div class="tablewrap">

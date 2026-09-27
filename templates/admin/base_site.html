@@ -1,0 +1,142 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}Africa Drone Kings{% endblock %}
+
+{% block branding %}
+<div id="site-name">
+  <a href="{% url 'admin:index' %}" style="display: flex; align-items: center; text-decoration: none;">
+    <img src="{% static 'img/adk-logo.png' %}" alt="Africa Drone Kings" style="height: 40px; width: auto; object-fit: contain; margin: 4px 0;">
+  </a>
+</div>
+{% endblock %}
+
+{% block nav-global %}
+<div style="margin-left: auto; display: flex; align-items: center; gap: 12px;">
+  <a href="{% url 'dashboard' %}" style="color: #1483c6; font-weight: 700; text-transform: uppercase; font-size: 12px; letter-spacing: 0.05em; text-decoration: none; padding: 7px 14px; background: #e8f4fc; border-radius: 6px; border: 1px solid #bfdbfe; transition: background 0.15s;">← Candidate & Staff Portal</a>
+</div>
+{% endblock %}
+
+{% block extrastyle %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: #1483c6 !important;
+    --primary-fg: #ffffff !important;
+    --accent: #0e6ca7 !important;
+    --header-bg: #ffffff !important;
+    --header-color: #0f172a !important;
+    --header-branding-color: #1483c6 !important;
+    --body-bg: #f8fafc !important;
+    --body-fg: #0f172a !important;
+    --breadcrumbs-bg: #f1f5f9 !important;
+    --breadcrumbs-fg: #64748b !important;
+    --breadcrumbs-link-fg: #1483c6 !important;
+    --button-bg: #1483c6 !important;
+    --button-hover-bg: #0e6ca7 !important;
+    --default-button-bg: #1483c6 !important;
+    --default-button-hover-bg: #0e6ca7 !important;
+    --message-success-bg: #ecfdf5 !important;
+    --message-success-color: #065f46 !important;
+  }
+  body {
+    font-family: 'Montserrat', ui-sans-serif, system-ui, -apple-system, sans-serif !important;
+    background: #f8fafc !important;
+    color: #0f172a !important;
+  }
+  #header {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
+    padding: 8px 24px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+  }
+  #branding h1 {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  #branding h1 a, #header a {
+    color: #0f172a !important;
+  }
+  #user-tools {
+    color: #64748b !important;
+    font-weight: 600 !important;
+    font-size: 13px !important;
+  }
+  #user-tools a {
+    color: #1483c6 !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+  }
+  .module, .inline-group {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04) !important;
+    margin-bottom: 24px !important;
+  }
+  .module h2, .module caption, .inline-group h2 {
+    background: #f8fafc !important;
+    color: #0f172a !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.06em !important;
+    font-size: 13px !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    padding: 12px 18px !important;
+  }
+  a.section:link, a.section:visited {
+    color: #0f172a !important;
+  }
+  .button, input[type=submit], input[type=button], .submit-row input, a.button {
+    background: #1483c6 !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 9px 18px !important;
+    font-weight: 700 !important;
+    font-family: inherit !important;
+    font-size: 13px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+  }
+  .button:hover, input[type=submit]:hover, input[type=button]:hover, .submit-row input:hover {
+    background: #0e6ca7 !important;
+    transform: translateY(-1px) !important;
+  }
+  .breadcrumbs {
+    background: #f1f5f9 !important;
+    color: #64748b !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    padding: 10px 24px !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.04em !important;
+  }
+  .breadcrumbs a {
+    color: #1483c6 !important;
+    font-weight: 700 !important;
+  }
+  #changelist-filter {
+    background: #ffffff !important;
+    border-left: 1px solid #e2e8f0 !important;
+  }
+  #changelist-filter h2 {
+    background: #f8fafc !important;
+    color: #0f172a !important;
+    text-transform: uppercase !important;
+    font-size: 12px !important;
+    letter-spacing: 0.05em !important;
+  }
+</style>
+{% endblock %}

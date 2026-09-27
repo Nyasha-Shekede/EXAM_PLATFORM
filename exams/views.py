@@ -33,7 +33,18 @@ def dashboard(request):
         open_attempt=next((x for x in attempts if x.status==Attempt.IN_PROGRESS and x.is_open),None)
         rows.append({"assignment":a,"exam":a.exam,"attempts":attempts,"open":open_attempt,"remaining":max(a.exam.max_attempts-len(attempts),0),"available":a.exam.is_available()})
     recent=Attempt.objects.filter(candidate=request.user).exclude(status=Attempt.IN_PROGRESS).select_related("exam").order_by("-submitted_at")[:10]
-    return render(request,"exams/dashboard.html",{"rows":rows,"recent":recent})
+    staff_summary=None
+    if request.user.is_staff:
+        from django.contrib.auth import get_user_model
+        User=get_user_model()
+        staff_summary={
+            "exams_count":Exam.objects.count(),
+            "questions_count":Question.objects.count(),
+            "candidates_count":User.objects.filter(is_staff=False).count(),
+            "completed_attempts":Attempt.objects.exclude(status=Attempt.IN_PROGRESS).count(),
+            "all_recent":Attempt.objects.exclude(status=Attempt.IN_PROGRESS).select_related("exam","candidate").order_by("-submitted_at")[:8],
+        }
+    return render(request,"exams/dashboard.html",{"rows":rows,"recent":recent,"staff_summary":staff_summary})
 @login_required
 @require_POST
 def begin(request,exam_id):

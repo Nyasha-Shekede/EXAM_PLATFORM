@@ -1,1 +1,180 @@
-{% extends "base.html" %}{% block title %}Dashboard · {{ SITE_NAME }}{% endblock %}{% block content %}<div class="pagehead"><div><p class="eyebrow">Training & Assessment</p><h1>My Examinations</h1></div><p class="muted">Review your assigned tests, available attempts, and official results.</p></div><section class="grid">{% for row in rows %}<article class="card"><div class="cardtop"><span class="badge">{{ row.exam.module.code }}</span><span>{{ row.exam.duration_minutes }} min</span></div><h2>{{ row.exam.title }}</h2><p>{{ row.exam.question_count }} questions · Pass mark {{ row.exam.pass_mark }}% · {{ row.remaining }} attempt{{ row.remaining|pluralize }} remaining</p>{% if row.open %}<a class="primary" href="{% url 'question' row.open.id 1 %}">Resume attempt</a>{% elif row.available and row.remaining %}<form method="post" action="{% url 'begin' row.exam.id %}">{% csrf_token %}<button class="primary">Start examination</button></form>{% else %}<button disabled>Not available</button>{% endif %}</article>{% empty %}<div class="empty"><h2>No examination is assigned</h2><p>Contact your instructor if you expected one.</p></div>{% endfor %}</section>{% if recent %}<section><h2>Completed attempts</h2><div class="tablewrap"><table><thead><tr><th>Examination</th><th>Attempt</th><th>Submitted</th><th>Score</th><th>Result</th><th></th></tr></thead><tbody>{% for a in recent %}<tr><td>{{ a.exam.title }}</td><td>{{ a.attempt_number }}</td><td>{{ a.submitted_at|date:"Y-m-d H:i" }}</td><td>{{ a.percentage }}%</td><td><span class="status {% if a.passed %}pass{% else %}fail{% endif %}">{% if a.passed %}Pass{% else %}Fail{% endif %}</span></td><td><a href="{% url 'result' a.id %}">View result</a></td></tr>{% endfor %}</tbody></table></div></section>{% endif %}{% endblock %}
+{% extends "base.html" %}
+{% block title %}Dashboard · Africa Drone Kings{% endblock %}
+
+{% block content %}
+{% if staff_summary %}
+<!-- Instructor / Staff Hub -->
+<div class="pagehead">
+  <div>
+    <p class="eyebrow">Instructor & Training Operations</p>
+    <h1>Academy Overview</h1>
+  </div>
+  <div style="display: flex; gap: 0.6rem; flex-wrap: wrap;">
+    <a class="primary" href="{% url 'import_questions' %}">📥 Bulk Import Questions</a>
+    <a class="secondary" href="{% url 'admin:exams_exam_add' %}">➕ New Exam</a>
+    <a class="secondary" href="{% url 'admin:exams_assignment_add' %}">🎯 Assign Candidate</a>
+  </div>
+</div>
+
+<!-- Key Academy Metrics -->
+<section class="grid" style="margin-bottom: 2.2rem;">
+  <article class="card" style="border-left: 4px solid var(--adk-blue);">
+    <div class="cardtop">
+      <span class="eyebrow">Active Curricula</span>
+      <a href="{% url 'admin:exams_exam_changelist' %}" style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--adk-blue); text-decoration: none;">Manage →</a>
+    </div>
+    <div style="font-size: 2.2rem; font-weight: 800; color: var(--ink);">{{ staff_summary.exams_count }}</div>
+    <p class="muted" style="margin: 0.2rem 0 0; font-size: 0.85rem;">Total examinations created</p>
+  </article>
+
+  <article class="card" style="border-left: 4px solid #0284c7;">
+    <div class="cardtop">
+      <span class="eyebrow">Question Bank</span>
+      <a href="{% url 'admin:exams_question_changelist' %}" style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--adk-blue); text-decoration: none;">View Pool →</a>
+    </div>
+    <div style="font-size: 2.2rem; font-weight: 800; color: var(--ink);">{{ staff_summary.questions_count }}</div>
+    <p class="muted" style="margin: 0.2rem 0 0; font-size: 0.85rem;">Questions with answers & diagrams</p>
+  </article>
+
+  <article class="card" style="border-left: 4px solid #059669;">
+    <div class="cardtop">
+      <span class="eyebrow">Enrolled Students</span>
+      <a href="{% url 'admin:auth_user_changelist' %}" style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--adk-blue); text-decoration: none;">Users →</a>
+    </div>
+    <div style="font-size: 2.2rem; font-weight: 800; color: var(--ink);">{{ staff_summary.candidates_count }}</div>
+    <p class="muted" style="margin: 0.2rem 0 0; font-size: 0.85rem;">Candidate student accounts</p>
+  </article>
+
+  <article class="card" style="border-left: 4px solid #7c3aed;">
+    <div class="cardtop">
+      <span class="eyebrow">Submissions</span>
+      <a href="{% url 'admin:exams_attempt_changelist' %}" style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--adk-blue); text-decoration: none;">Audit Log →</a>
+    </div>
+    <div style="font-size: 2.2rem; font-weight: 800; color: var(--ink);">{{ staff_summary.completed_attempts }}</div>
+    <p class="muted" style="margin: 0.2rem 0 0; font-size: 0.85rem;">Marked candidate attempts</p>
+  </article>
+</section>
+
+<!-- Recent Candidate Submissions Feed -->
+{% if staff_summary.all_recent %}
+<section style="margin-bottom: 2.5rem;">
+  <div class="pagehead" style="margin-bottom: 1rem;">
+    <div>
+      <p class="eyebrow">Live Results</p>
+      <h2>Recent Candidate Submissions</h2>
+    </div>
+    <a class="secondary" href="{% url 'admin:exams_attempt_changelist' %}">Full Results Log</a>
+  </div>
+  <div class="tablewrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Candidate</th>
+          <th>Examination</th>
+          <th>Attempt #</th>
+          <th>Submitted</th>
+          <th>Score</th>
+          <th>Status</th>
+          <th>Slip</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in staff_summary.all_recent %}
+        <tr>
+          <td><strong>{{ a.candidate.get_full_name|default:a.candidate.username }}</strong></td>
+          <td>{{ a.exam.title }}</td>
+          <td>Attempt {{ a.attempt_number }}</td>
+          <td>{{ a.submitted_at|date:"Y-m-d H:i" }}</td>
+          <td><strong>{{ a.percentage }}%</strong></td>
+          <td>
+            <span class="status {% if a.passed %}pass{% else %}fail{% endif %}">
+              {% if a.passed %}PASS{% else %}FAIL{% endif %}
+            </span>
+          </td>
+          <td>
+            <a href="{% url 'result' a.id %}" style="color: var(--adk-blue); font-weight: 700; text-decoration: none;">View Result →</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+{% endif %}
+
+<!-- Candidate Examinations Section -->
+<div class="pagehead">
+  <div>
+    <p class="eyebrow">{% if staff_summary %}Self-Testing & Assigned Exams{% else %}Training & Assessment{% endif %}</p>
+    <h1>{% if staff_summary %}My Examination Assignments{% else %}My Examinations{% endif %}</h1>
+  </div>
+  {% if not staff_summary %}
+  <p class="muted">Review your assigned tests, available attempts, and official scorecards.</p>
+  {% endif %}
+</div>
+
+<section class="grid">
+  {% for row in rows %}
+  <article class="card">
+    <div class="cardtop">
+      <span class="badge">{{ row.exam.module.code }}</span>
+      <span>{{ row.exam.duration_minutes }} min</span>
+    </div>
+    <h2>{{ row.exam.title }}</h2>
+    <p class="muted">{{ row.exam.question_count }} questions · Pass mark {{ row.exam.pass_mark }}% · {{ row.remaining }} attempt{{ row.remaining|pluralize }} remaining</p>
+    {% if row.open %}
+    <a class="primary" href="{% url 'question' row.open.id 1 %}">Resume Attempt</a>
+    {% elif row.available and row.remaining %}
+    <form method="post" action="{% url 'begin' row.exam.id %}">
+      {% csrf_token %}
+      <button class="primary" type="submit">Start Examination</button>
+    </form>
+    {% else %}
+    <button disabled>Not Available</button>
+    {% endif %}
+  </article>
+  {% empty %}
+  <div class="empty" style="grid-column: 1 / -1;">
+    <h2>No Examinations Currently Assigned</h2>
+    <p class="muted">{% if staff_summary %}You do not have any active exam assignments for your personal user account. Use the quick actions above to manage the academy.{% else %}Contact your Africa Drone Kings instructor if you expected an exam assignment.{% endif %}</p>
+  </div>
+  {% endfor %}
+</section>
+
+{% if recent and not staff_summary %}
+<section style="margin-top: 3rem;">
+  <h2>My Completed Attempts</h2>
+  <div class="tablewrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Examination</th>
+          <th>Attempt</th>
+          <th>Submitted</th>
+          <th>Score</th>
+          <th>Result</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in recent %}
+        <tr>
+          <td>{{ a.exam.title }}</td>
+          <td>{{ a.attempt_number }}</td>
+          <td>{{ a.submitted_at|date:"Y-m-d H:i" }}</td>
+          <td>{{ a.percentage }}%</td>
+          <td>
+            <span class="status {% if a.passed %}pass{% else %}fail{% endif %}">
+              {% if a.passed %}Pass{% else %}Fail{% endif %}
+            </span>
+          </td>
+          <td><a href="{% url 'result' a.id %}" style="color: var(--adk-blue); font-weight: 700; text-decoration: none;">View Result →</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

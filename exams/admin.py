@@ -29,5 +29,5 @@ class AuditAdmin(admin.ModelAdmin):
     list_display=("at","actor","action","object_type","object_id","event_hash"); list_filter=("action","object_type"); search_fields=("object_id","event_hash"); readonly_fields=[f.name for f in AuditEvent._meta.fields]
     def has_add_permission(self,request): return False
     def has_change_permission(self,request,obj=None): return False
-admin.site.site_header="Drone Academy Examination Administration"
-admin.site.site_title="Exam Administration"
+admin.site.site_header="Africa Drone Kings Examination Administration"
+admin.site.site_title="Africa Drone Kings"

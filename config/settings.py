@@ -26,8 +26,8 @@ MEDIA_ROOT=BASE_DIR/"media"
 DEFAULT_AUTO_FIELD="django.db.models.BigAutoField"
 LOGIN_REDIRECT_URL="dashboard"
 LOGOUT_REDIRECT_URL="login"
-SITE_NAME=os.getenv("SITE_NAME","Local Drone Academy")
-SUPPORT_EMAIL=os.getenv("SUPPORT_EMAIL","training@example.test")
+SITE_NAME = os.getenv("SITE_NAME", "Africa Drone Kings")
+SUPPORT_EMAIL = os.getenv("SUPPORT_EMAIL", "training@africadronekings.com")
 SECURE_PROXY_SSL_HEADER=("HTTP_X_FORWARDED_PROTO","https")
 SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "0" if DEBUG else "1") == "1"
 CSRF_COOKIE_SECURE = os.getenv("CSRF_COOKIE_SECURE", "0" if DEBUG else "1") == "1"

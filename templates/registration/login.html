@@ -1,1 +1,28 @@
-{% extends "base.html" %}{% block title %}Sign in · {{ SITE_NAME }}{% endblock %}{% block content %}<section class="login-card"><p class="eyebrow">Candidate portal</p><h1>Sign in</h1><p>Use the account issued by your academy.</p><form method="post" class="stack">{% csrf_token %}{{ form.non_field_errors }}<label>Username or email{{ form.username }}</label><label>Password{{ form.password }}</label><button class="primary">Sign in</button></form></section>{% endblock %}
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Sign In · Africa Drone Kings{% endblock %}
+{% block content %}
+<section class="login-card">
+  <div class="login-header">
+    <img src="{% static 'img/adk-logo.png' %}" alt="Africa Drone Kings" class="login-logo">
+    <p class="eyebrow">Candidate & Staff Portal</p>
+    <h1>Sign In</h1>
+    <p class="muted">Enter your candidate number or email address to access your assigned examinations.</p>
+  </div>
+  <form method="post" class="stack">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+    <div class="notice error">{{ form.non_field_errors }}</div>
+    {% endif %}
+    <label>
+      Username or Email
+      {{ form.username }}
+    </label>
+    <label>
+      Password
+      {{ form.password }}
+    </label>
+    <button class="primary" type="submit">Sign In to Examination Portal</button>
+  </form>
+</section>
+{% endblock %}

@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Import questions · {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div><p class="eyebrow">Instructor tools</p><h1>Import questions</h1></div>
+  <a class="primary" href="{% url 'import_template' %}">1. Download simple template</a>
+</div>
+
+<section class="card import-intro">
+  <h2>Three simple steps</h2>
+  <div class="import-steps">
+    <div><strong>1</strong><span>Download the Excel template.</span></div>
+    <div><strong>2</strong><span>Fill one question per row.</span></div>
+    <div><strong>3</strong><span>Upload it once. Add pictures only if used.</span></div>
+  </div>
+  <p class="muted">The system generates question IDs, detects single versus multiple answers, and applies safe defaults automatically. Every imported question is saved as a draft for review.</p>
+</section>
+
+<div class="resultgrid import-grid">
+  <section class="card">
+    <h2>2. Choose your completed file</h2>
+    <form method="post" enctype="multipart/form-data" class="stack">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      <label for="{{ form.spreadsheet.id_for_label }}">{{ form.spreadsheet.label }}
+        {{ form.spreadsheet }}
+        <small>{{ form.spreadsheet.help_text }}</small>
+        {{ form.spreadsheet.errors }}
+      </label>
+      <label for="{{ form.images.id_for_label }}">{{ form.images.label }}
+        {{ form.images }}
+        <small>{{ form.images.help_text }}</small>
+        {{ form.images.errors }}
+      </label>
+      <button class="primary">3. Import questions</button>
+    </form>
+  </section>
+  <section class="card">
+    <h2>What goes in the sheet?</h2>
+    <table class="compact"><tbody>
+      <tr><th>Module</th><td>Example: Air Law</td></tr>
+      <tr><th>Category</th><td>Optional; blank becomes General</td></tr>
+      <tr><th>Question</th><td>The question text</td></tr>
+      <tr><th>Options A–D</th><td>A and B are required; C and D are optional</td></tr>
+      <tr><th>Correct Answer</th><td><code>A</code> for one answer; <code>A,C</code> for multiple answers</td></tr>
+      <tr><th>Image</th><td>Optional exact filename, such as <code>weather-map.png</code></td></tr>
+      <tr><th>Image Description</th><td>Required only when an image is used</td></tr>
+    </tbody></table>
+    <p><strong>No question codes. No type column. No marks, difficulty, status, ZIP file, or validation re-upload.</strong></p>
+  </section>
+</div>
+
+{% if result %}
+<section class="card import-result {% if result.ok %}successbox{% else %}errorbox{% endif %}" role="status">
+  {% if result.ok %}
+    <h2>{{ result.imported }} question{{ result.imported|pluralize }} imported</h2>
+    <p>They were saved as drafts with 1 mark and medium difficulty. Review them in <a href="{% url 'admin:exams_question_changelist' %}">Question administration</a>, then publish when ready.</p>
+    {% if result.unused_images %}<p class="muted">Unused selected pictures: {{ result.unused_images|join:", " }}</p>{% endif %}
+  {% else %}
+    <h2>Nothing was imported</h2>
+    <p>Fix the rows below and upload the sheet again. The existing question bank was not changed.</p>
+    <div class="tablewrap"><table><thead><tr><th>Row</th><th>Problem</th></tr></thead><tbody>
+      {% for error in result.errors %}<tr><td>{{ error.row }}</td><td>{{ error.errors|join:"; " }}</td></tr>{% endfor %}
+    </tbody></table></div>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

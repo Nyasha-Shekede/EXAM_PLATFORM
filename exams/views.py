@@ -20,7 +20,7 @@ from reportlab.lib.units import mm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from .forms import ImportForm
 from .importers import import_simple_questions
-from .models import Assignment,Attempt,AttemptQuestion,Question,Response
+from .models import Assignment, Attempt, AttemptQuestion, Exam, Question, Response
 from .services import client_ip,save_response,start_attempt,submit_attempt,audit
 
 def home(request): return redirect("dashboard" if request.user.is_authenticated else "login")

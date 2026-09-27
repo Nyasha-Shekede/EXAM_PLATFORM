@@ -12,6 +12,7 @@
 </head>
 <body>
   <a class="skip" href="#main">Skip to content</a>
+  {% block header %}
   <header class="top">
     <a class="brand" href="{% url 'dashboard' %}" title="Africa Drone Kings">
       <img src="{% static 'img/adk-logo.png' %}" alt="Africa Drone Kings" class="brand-logo">
@@ -30,6 +31,7 @@
     </div>
     {% endif %}
   </header>
+  {% endblock %}
   <main id="main" class="container">
     {% for message in messages %}
     <div class="notice {{ message.tags }}" role="alert">{{ message }}</div>

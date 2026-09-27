@@ -1,13 +1,14 @@
 {% extends "base.html" %}
 {% load static %}
+
 {% block title %}Sign In · Africa Drone Kings{% endblock %}
+
+{% block header %}{% endblock %}
+
 {% block content %}
 <section class="login-card">
-  <div class="login-header">
-    <img src="{% static 'img/adk-logo.png' %}" alt="Africa Drone Kings" class="login-logo">
-    <p class="eyebrow">Candidate & Staff Portal</p>
-    <h1>Sign In</h1>
-    <p class="muted">Enter your candidate number or email address to access your assigned examinations.</p>
+  <div class="login-header" style="margin-bottom: 2rem;">
+    <img src="{% static 'img/adk-logo.png' %}" alt="Africa Drone Kings" class="login-logo" style="height: 60px;">
   </div>
   <form method="post" class="stack">
     {% csrf_token %}
@@ -22,7 +23,7 @@
       Password
       {{ form.password }}
     </label>
-    <button class="primary" type="submit">Sign In to Examination Portal</button>
+    <button class="primary" type="submit" style="margin-top: 0.5rem; padding: 0.9rem;">Sign In to Examination Portal</button>
   </form>
 </section>
 {% endblock %}

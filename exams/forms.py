@@ -62,7 +62,14 @@ class CreateExamForm(forms.Form):
     title = forms.CharField(
         label="Examination Title",
         max_length=180,
-        widget=forms.TextInput(attrs={"placeholder": "e.g. Multi-Rotor Remote Pilot Ground School"}),
+        widget=forms.TextInput(attrs={"placeholder": "e.g. Air Law & ATC Procedures Assessment"}),
+    )
+    module_name = forms.CharField(
+        label="Subject / Module",
+        max_length=120,
+        initial="Air Law",
+        widget=forms.TextInput(attrs={"list": "module-options", "placeholder": "e.g. Air Law, Meteorology, Multirotor Systems"}),
+        help_text="Select or enter the specific subject module for this exam. All uploaded questions belong to this module.",
     )
     duration_minutes = forms.IntegerField(
         label="Time Limit (Minutes)",

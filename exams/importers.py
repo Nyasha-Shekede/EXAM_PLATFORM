@@ -125,10 +125,11 @@ def read_simple_rows(name, data):
         "correct": "correct_answer", "correct_answers": "correct_answer",
         "picture": "image", "picture_filename": "image", "image_filename": "image",
         "alt_text": "image_description", "image_alt_text": "image_description",
-        "question_text": "question",
+        "question_text": "question", "topic": "category", "subtopic": "category",
     }
     headers = [aliases.get(h, h) for h in headers]
-    missing = [h for h in ("module", "question", "option_a", "option_b", "correct_answer") if h not in headers]
+    # Note: 'module' is no longer required in the spreadsheet since exams are module-specific.
+    missing = [h for h in ("question", "option_a", "option_b", "correct_answer") if h not in headers]
     if missing:
         raise ValueError("Missing required column(s): " + ", ".join(missing) + ". Download and use the simple template.")
     rows = []
@@ -145,12 +146,15 @@ def _safe_code(value, fallback):
     return (code or fallback)[:50]
 
 def _read_image_uploads(image_uploads):
-    assets = {}
+    assets_by_name = {}
+    assets_by_stem = {}
     errors = []
     for upload in image_uploads:
-        basename = PurePosixPath(upload.name).name
-        key = basename.lower()
-        if key in assets:
+        path = PurePosixPath(upload.name)
+        basename = path.name
+        key_name = basename.lower()
+        key_stem = path.stem.lower()
+        if key_name in assets_by_name:
             errors.append(f"Two selected pictures have the same filename: {basename}")
             continue
         data = upload.read()
@@ -165,18 +169,21 @@ def _read_image_uploads(image_uploads):
         except (OSError, SyntaxError, ValueError):
             errors.append(f"{basename} is not a valid PNG, JPEG, or WebP image")
             continue
-        assets[key] = (basename, data)
-    return assets, errors
+        assets_by_name[key_name] = (basename, data)
+        # Format-agnostic indexing: allow looking up 'clouds' when 'clouds.png' was uploaded
+        if key_stem not in assets_by_stem:
+            assets_by_stem[key_stem] = (basename, data)
+    return assets_by_name, assets_by_stem, errors
 
-def validate_simple_rows(rows, assets):
+def validate_simple_rows(rows, assets_by_name, assets_by_stem, default_module=None):
     parsed, errors = [], []
     for row_number, source in enumerate(rows, 2):
         row = {h: clean(source.get(h, "")) for h in SIMPLE_HEADERS}
         row_errors = []
-        module_title = row["module"]
+        module_title = row["module"] or default_module or "General Aviation"
         category_title = row["category"] or "General"
         if not module_title:
-            row_errors.append("Module is required")
+            row_errors.append("Module / Subject is required")
         if not row["question"]:
             row_errors.append("Question is required")
         options = {letter: row[f"option_{letter.lower()}"] for letter in "ABCD"}
@@ -188,11 +195,22 @@ def validate_simple_rows(rows, assets):
             row_errors.append("Correct answer is required (for example A or A,C)")
         elif not correct <= set(options):
             row_errors.append("Correct answer must name an option that exists")
-        image_name = PurePosixPath(row["image"]).name if row["image"] else ""
-        if image_name and image_name.lower() not in assets:
-            row_errors.append(f"Picture '{image_name}' was not selected")
-        if image_name and not row["image_description"]:
-            row_errors.append("Image description is required when a picture is used")
+        
+        # Format-agnostic image resolution
+        raw_image = row["image"]
+        resolved_image_name = ""
+        if raw_image:
+            img_path = PurePosixPath(raw_image)
+            lower_name = img_path.name.lower()
+            lower_stem = img_path.stem.lower()
+            match = assets_by_stem.get(lower_stem) or assets_by_name.get(lower_name)
+            if not match:
+                row_errors.append(f"Picture '{raw_image}' was not selected in upload")
+            else:
+                resolved_image_name = match[0]
+            if not row["image_description"]:
+                row_errors.append("Image description is required when a picture is used")
+
         if row_errors:
             errors.append({"row": row_number, "question_code": "", "errors": row_errors})
         parsed.append({
@@ -202,16 +220,16 @@ def validate_simple_rows(rows, assets):
             "category_code": _safe_code(category_title, "GENERAL"),
             "stem": row["question"], "options": options, "correct": correct,
             "question_type": Question.MULTIPLE if len(correct) > 1 else Question.SINGLE,
-            "image_name": image_name, "image_alt_text": row["image_description"],
+            "image_name": resolved_image_name, "image_alt_text": row["image_description"],
         })
     return parsed, errors
 
 @transaction.atomic
-def import_simple_questions(spreadsheet, image_uploads, user):
+def import_simple_questions(spreadsheet, image_uploads, user, default_module=None):
     raw = spreadsheet.read()
     rows = read_simple_rows(spreadsheet.name, raw)
-    assets, asset_errors = _read_image_uploads(image_uploads)
-    parsed, errors = validate_simple_rows(rows, assets)
+    assets_by_name, assets_by_stem, asset_errors = _read_image_uploads(image_uploads)
+    parsed, errors = validate_simple_rows(rows, assets_by_name, assets_by_stem, default_module=default_module)
     if asset_errors:
         errors.insert(0, {"row": "Pictures", "question_code": "", "errors": asset_errors})
     if errors:
@@ -226,7 +244,6 @@ def import_simple_questions(spreadsheet, image_uploads, user):
             module=module, code=item["category_code"],
             defaults={"title": item["category_title"]},
         )
-        # Codes are generated by the system, so instructors no longer manage identifiers.
         import uuid
         code = f"{item['module_code'][:30]}-{uuid.uuid4().hex[:10].upper()}"
         question = Question.objects.create(
@@ -240,10 +257,10 @@ def import_simple_questions(spreadsheet, image_uploads, user):
             for key, text in item["options"].items()
         ])
         if item["image_name"]:
-            original_name, data = assets[item["image_name"].lower()]
+            original_name, data = assets_by_name[item["image_name"].lower()]
             extension = PurePosixPath(original_name).suffix.lower()
             question.image.save(f"{question.code}{extension}", ContentFile(data), save=True)
             used_images.add(item["image_name"].lower())
         imported += 1
-    unused = sorted(name for name, (original, _) in assets.items() if name not in used_images)
+    unused = sorted(name for name, (original, _) in assets_by_name.items() if name not in used_images)
     return {"ok": True, "rows": len(rows), "imported": imported, "errors": [], "unused_images": unused}

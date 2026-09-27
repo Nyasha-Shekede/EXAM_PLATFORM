@@ -167,24 +167,23 @@ def import_view(request):
 
 @user_passes_test(staff_required)
 def template_download(request):
-    headings = ["Module", "Category", "Question", "Option A", "Option B", "Option C",
+    headings = ["Category", "Question", "Option A", "Option B", "Option C",
                 "Option D", "Correct Answer", "Image", "Image Description"]
     workbook = Workbook()
     sheet = workbook.active
     sheet.title = "Questions"
     sheet.append(headings)
     sheet.freeze_panes = "A2"
-    sheet.auto_filter.ref = "A1:J1"
-    widths = [22, 22, 58, 32, 32, 32, 32, 20, 28, 48]
+    sheet.auto_filter.ref = "A1:I1"
+    widths = [24, 60, 32, 32, 32, 32, 20, 26, 48]
     notes = {
-        "Module": "Required. Example: Air Law. The system creates the module if needed.",
-        "Category": "Optional. Leave blank to use General.",
-        "Question": "Required. Enter the full question.",
+        "Category": "Optional. Topic/Chapter within this exam subject (e.g. Airspace, Weather Limits, Altimetry). Leave blank for General.",
+        "Question": "Required. Enter the question stem.",
         "Option A": "Required.", "Option B": "Required.",
         "Option C": "Optional.", "Option D": "Optional.",
         "Correct Answer": "Use A for one correct answer or A,C for multiple correct answers.",
-        "Image": "Optional. Enter the exact picture filename, e.g. chart.png, then select that picture on upload.",
-        "Image Description": "Required only for a picture. Describe it without revealing the answer.",
+        "Image": "Optional. Format-agnostic: enter 'clouds' or 'clouds.png'. Select the picture file on upload.",
+        "Image Description": "Required only when an image is referenced.",
     }
     for index, (heading, width) in enumerate(zip(headings, widths), 1):
         cell = sheet.cell(1, index)
@@ -196,15 +195,15 @@ def template_download(request):
     sheet.row_dimensions[1].height = 28
     # Blank formatted rows make it obvious where to type without importing examples by accident.
     for row in range(2, 102):
-        for column in range(1, 11):
+        for column in range(1, 10):
             sheet.cell(row, column).alignment = Alignment(vertical="top", wrap_text=True)
     guide = workbook.create_sheet("Quick Guide")
     guide.column_dimensions["A"].width = 26
     guide.column_dimensions["B"].width = 90
     guide.append(["Step", "What to do"])
-    guide.append(["1", "Fill one question per row on the Questions sheet."])
+    guide.append(["1", "Fill one question per row on the Questions sheet for your chosen exam subject."])
     guide.append(["2", "For one correct answer type A, B, C, or D. For multiple correct answers type A,C (comma-separated)."])
-    guide.append(["3", "Pictures are optional. Put the exact filename in Image and select the picture when uploading the sheet."])
+    guide.append(["3", "Pictures are format-agnostic! Put the name (e.g. clouds or clouds.png) in Image and select the image files on upload."])
     guide.append(["4", "Upload when creating an exam to automatically import, publish, and assign to students."])
     for cell in guide[1]:
         cell.font = Font(bold=True, color="FFFFFF")
@@ -220,10 +219,12 @@ def template_download(request):
 def create_exam_view(request):
     import uuid, re
     from .models import Module, Category
+    existing_modules = Module.objects.order_by("title")
     if request.method == "POST":
         form = CreateExamForm(request.POST, request.FILES)
         if form.is_valid():
             title = form.cleaned_data["title"]
+            module_name = form.cleaned_data["module_name"].strip()
             duration = form.cleaned_data["duration_minutes"]
             pass_mark = form.cleaned_data["pass_mark"]
             max_attempts = form.cleaned_data["max_attempts"]
@@ -232,14 +233,18 @@ def create_exam_view(request):
             images = form.cleaned_data["images"]
             candidates = form.cleaned_data["candidates"]
 
-            # Import questions from spreadsheet
-            res = import_simple_questions(spreadsheet, images, request.user)
+            # Import questions under the chosen subject module
+            res = import_simple_questions(spreadsheet, images, request.user, default_module=module_name)
             if not res["ok"]:
-                return render(request, "exams/create_exam.html", {"form": form, "import_errors": res["errors"]})
+                return render(request, "exams/create_exam.html", {
+                    "form": form,
+                    "import_errors": res["errors"],
+                    "existing_modules": existing_modules,
+                })
 
             imported_count = res["imported"]
-            latest_q = Question.objects.filter(created_by=request.user).order_by("-created_at").first()
-            module = latest_q.module if latest_q else Module.objects.first()
+            module_code = re.sub(r'[^A-Z0-9]+', '_', module_name.upper()).strip('_')[:50] or "MODULE"
+            module, _ = Module.objects.get_or_create(code=module_code, defaults={"title": module_name})
 
             # Ensure all questions under this module are PUBLISHED so the exam can be taken immediately
             Question.objects.filter(module=module, status=Question.DRAFT).update(status=Question.PUBLISHED)
@@ -265,10 +270,10 @@ def create_exam_view(request):
             for candidate in candidates:
                 Assignment.objects.get_or_create(exam=exam, candidate=candidate)
 
-            messages.success(request, f"Examination '{title}' created with {imported_count} questions and assigned to {len(candidates)} student(s)!")
+            messages.success(request, f"Examination '{title}' created under module '{module.title}' with {imported_count} questions and assigned to {len(candidates)} student(s)!")
             return redirect("dashboard")
     else:
         form = CreateExamForm()
 
-    return render(request, "exams/create_exam.html", {"form": form})
+    return render(request, "exams/create_exam.html", {"form": form, "existing_modules": existing_modules})
 

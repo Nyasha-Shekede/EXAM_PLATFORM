@@ -19,6 +19,13 @@ class AssignmentInline(admin.TabularInline):
     verbose_name = "Candidate Assignment"
     verbose_name_plural = "Assigned Candidates"
 
+@admin.register(Assignment)
+class AssignmentAdmin(admin.ModelAdmin):
+    list_display = ("exam", "candidate", "active", "assigned_at")
+    list_filter = ("exam", "active")
+    search_fields = ("exam__title", "candidate__username", "candidate__first_name", "candidate__last_name")
+    autocomplete_fields = ["exam", "candidate"]
+
 @admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):
     list_display = ("code", "module", "question_type", "difficulty", "status", "version", "updated_at")

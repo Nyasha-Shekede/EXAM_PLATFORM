@@ -164,9 +164,21 @@ class SimpleImportTests(Base):
         self.assertContains(response, "1 question imported")
         self.assertTrue(Question.objects.get(stem="Direct picture?").image.name.endswith(".png"))
 
-    def test_simple_template_has_only_ten_columns(self):
+    def test_simple_template_has_nine_columns(self):
         self.client.login(username="admin", password="Strong-pass-475")
         response = self.client.get(reverse("import_template"))
         workbook = load_workbook(io.BytesIO(response.content), read_only=True)
         headers = [cell.value for cell in next(workbook["Questions"].iter_rows())]
-        self.assertEqual(headers, ["Module", "Category", "Question", "Option A", "Option B", "Option C", "Option D", "Correct Answer", "Image", "Image Description"])
+        self.assertEqual(headers, ["Category", "Question", "Option A", "Option B", "Option C", "Option D", "Correct Answer", "Image", "Image Description"])
+
+    def test_format_agnostic_image_matching(self):
+        image = Image.new("RGB", (20, 20), (40, 80, 120))
+        data = io.BytesIO(); image.save(data, "PNG")
+        picture = SimpleUploadedFile("clouds.png", data.getvalue(), content_type="image/png")
+        # In the CSV, we specify just 'clouds' without any extension
+        upload = self.simple_csv("Air Law,Weather,Identify clouds,Cumulus,Stratus,,,A,clouds,Fluffy white clouds")
+        result = import_simple_questions(upload, [picture], self.staff)
+        self.assertTrue(result["ok"])
+        q = Question.objects.get(stem="Identify clouds")
+        self.assertTrue(q.image.name.endswith(".png"))
+        self.assertEqual(q.image_alt_text, "Fluffy white clouds")

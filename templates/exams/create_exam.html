@@ -26,13 +26,31 @@
   {% csrf_token %}
 
   <!-- Step 1: Exam Configuration -->
-  <fieldset class="card" style="border: 1px solid var(--line);">
+  <fieldset class="card">
     <legend style="font-weight: 700; color: var(--ink); padding: 0 0.5rem; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.05em;">1. Examination Details</legend>
     <div class="stack">
-      <label>
-        Examination Title
-        {{ form.title }}
-      </label>
+      <div style="display: grid; grid-template-columns: 1.4fr 1fr; gap: 1rem;">
+        <label>
+          Examination Title
+          {{ form.title }}
+        </label>
+        <label>
+          Subject / Module
+          {{ form.module_name }}
+          <datalist id="module-options">
+            {% for m in existing_modules %}
+            <option value="{{ m.title }}">
+            {% endfor %}
+            <option value="Air Law & ATC Procedures">
+            <option value="Meteorology">
+            <option value="Principles of Flight (Multirotor)">
+            <option value="Human Factors">
+            <option value="Navigation & Flight Planning">
+            <option value="RPAS Technical & Maintenance">
+          </datalist>
+          <small class="muted" style="display: block; margin-top: 0.2rem;">All questions in this upload belong to this specific module.</small>
+        </label>
+      </div>
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
         <label>
           Duration (Minutes)
@@ -55,7 +73,7 @@
   </fieldset>
 
   <!-- Step 2: Upload Questions -->
-  <fieldset class="card" style="border: 1px solid var(--line);">
+  <fieldset class="card">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
       <legend style="font-weight: 700; color: var(--ink); padding: 0 0.5rem; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.05em;">2. Upload Questions</legend>
       <a href="{% url 'import_template' %}" style="font-size: 0.82rem; font-weight: 700; color: var(--adk-blue); text-decoration: none;">📄 Download Excel Template</a>
@@ -64,12 +82,12 @@
       <label>
         Question Spreadsheet (.xlsx or .csv)
         {{ form.spreadsheet }}
-        <small class="muted" style="display: block; margin-top: 0.3rem;">Fill questions into the 10-column Excel sheet. They will be imported and published automatically for this exam.</small>
+        <small class="muted" style="display: block; margin-top: 0.3rem;">Dedicated to this specific subject module. Questions will be imported and published automatically for this exam.</small>
       </label>
       <label>
         Diagram Images (Optional)
         {{ form.images }}
-        <small class="muted" style="display: block; margin-top: 0.3rem;">If any questions refer to pictures, select all referenced PNG/JPEG files here at once.</small>
+        <small class="muted" style="display: block; margin-top: 0.3rem;"><strong>Format-agnostic:</strong> Select all referenced PNG/JPEG files at once. In your spreadsheet, you can type just the picture name (e.g. <code>clouds</code> or <code>clouds.png</code>).</small>
       </label>
     </div>
   </fieldset>

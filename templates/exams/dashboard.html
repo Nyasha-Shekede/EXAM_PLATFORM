@@ -65,8 +65,8 @@
       <h3>{{ exam.title }}</h3>
       <p class="muted">{{ exam.question_count }} questions · Pass mark {{ exam.pass_mark }}% · Max attempts: {{ exam.max_attempts }}</p>
       <div style="display: flex; gap: 0.5rem; margin-top: 1.2rem;">
-        <a class="secondary" href="{% url 'admin:exams_assignment_add' %}" style="flex: 1; font-size: 0.78rem; padding: 0.5rem;">Assign Student</a>
-        <a class="secondary" href="{% url 'admin:exams_exam_change' exam.id %}" style="font-size: 0.78rem; padding: 0.5rem;">Edit</a>
+        <a class="secondary" href="{% url 'admin:exams_exam_change' exam.id %}" style="flex: 1; font-size: 0.78rem; padding: 0.5rem;">Assign Candidates</a>
+        <a class="secondary" href="{% url 'admin:exams_exam_change' exam.id %}" style="font-size: 0.78rem; padding: 0.5rem;">Edit Exam</a>
       </div>
     </article>
     {% empty %}

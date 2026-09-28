@@ -272,3 +272,11 @@ class SimpleImportTests(Base):
         # Active exam card must be gone
         self.assertEqual(len(response.context["rows"]), 0)
         self.assertContains(response, "No Examinations Currently Assigned")
+
+    def test_get_on_answer_endpoint_redirects_gracefully_to_question(self):
+        attempt = start_attempt(self.exam, self.user)
+        self.client.login(username="C001", password="Strong-pass-473")
+        # Simulates candidate logging in with ?next pointing to an answer endpoint
+        response = self.client.get(reverse("answer", args=[attempt.id, 2]))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(f"/attempts/{attempt.id}/questions/2/", response.url)

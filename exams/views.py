@@ -59,8 +59,9 @@ def dashboard(request):
         }
     return render(request,"exams/dashboard.html",{"rows":rows,"recent":recent,"staff_summary":staff_summary})
 @login_required
-@require_POST
 def begin(request,exam_id):
+    if request.method != "POST":
+        return redirect("dashboard")
     a=get_object_or_404(Assignment.objects.select_related("exam"),candidate=request.user,exam_id=exam_id,active=True)
     try: attempt=start_attempt(a.exam,request.user,client_ip(request))
     except ValidationError as e: messages.error(request,"; ".join(e.messages)); return redirect("dashboard")
@@ -84,8 +85,9 @@ def question(request,attempt_id,position):
     palette=attempt.attempt_questions.annotate(answered=Count("response",filter=~Q(response__selected_keys=[]))).values("position","flagged","answered").order_by("position")
     return render(request,"exams/question.html",{"attempt":attempt,"q":aq,"selected":selected,"palette":palette,"total":attempt.attempt_questions.count(),"now_epoch":int(timezone.now().timestamp()),"expires_epoch":int(attempt.expires_at.timestamp())})
 @login_required
-@require_POST
 def answer(request,attempt_id,position):
+    if request.method != "POST":
+        return redirect("question", attempt_id=attempt_id, position=position)
     attempt=owned_attempt(request.user,attempt_id); aq=get_object_or_404(AttemptQuestion,attempt=attempt,position=position)
     selected=request.POST.getlist("selected")
     try: save_response(attempt,aq,selected,request.user,client_ip(request))
@@ -98,16 +100,18 @@ def answer(request,attempt_id,position):
     newpos=max(1,min(attempt.attempt_questions.count(),position+( -1 if target=="previous" else 1)))
     return redirect("question",attempt.id,newpos)
 @login_required
-@require_POST
 def flag_question(request,attempt_id,position):
+    if request.method != "POST":
+        return redirect("question", attempt_id=attempt_id, position=position)
     attempt=owned_attempt(request.user,attempt_id); aq=get_object_or_404(AttemptQuestion,attempt=attempt,position=position); aq.flagged=not aq.flagged; aq.save(update_fields=["flagged"]); return JsonResponse({"ok":True,"flagged":aq.flagged})
 @login_required
 def confirm_submit(request,attempt_id):
     attempt=owned_attempt(request.user,attempt_id); unanswered=attempt.attempt_questions.filter(Q(response__isnull=True)|Q(response__selected_keys=[])).count(); flagged=attempt.attempt_questions.filter(flagged=True).count()
     return render(request,"exams/confirm.html",{"attempt":attempt,"unanswered":unanswered,"flagged":flagged})
 @login_required
-@require_POST
 def finish(request,attempt_id):
+    if request.method != "POST":
+        return redirect("confirm_submit", attempt_id=attempt_id)
     attempt=owned_attempt(request.user,attempt_id)
     submit_attempt(attempt,expired=timezone.now()>=attempt.expires_at,actor=request.user,ip=client_ip(request))
     return redirect("result",attempt_id=attempt.id)

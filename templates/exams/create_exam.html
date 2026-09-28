@@ -51,7 +51,7 @@
           <small class="muted" style="display: block; margin-top: 0.2rem;">All questions in this upload belong to this specific module.</small>
         </label>
       </div>
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 1rem;">
         <label>
           Duration (Minutes)
           {{ form.duration_minutes }}
@@ -64,11 +64,26 @@
           Allowed Attempts
           {{ form.max_attempts }}
         </label>
+        <label>
+          Questions Per Attempt
+          {{ form.question_count }}
+          <small class="muted" style="display: block; margin-top: 0.2rem;">Leave blank to test on all.</small>
+        </label>
       </div>
-      <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; margin-top: 0.5rem;">
-        {{ form.show_answers_after }}
-        <span>Allow candidates to review correct answers and solutions after submission</span>
-      </label>
+      <div style="display: grid; gap: 0.5rem; margin-top: 0.5rem;">
+        <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer;">
+          {{ form.shuffle_questions }}
+          <span>Randomize question order for each candidate attempt</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer;">
+          {{ form.shuffle_options }}
+          <span>Randomize answer options (A, B, C, D) for each question</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer;">
+          {{ form.show_answers_after }}
+          <span>Allow candidates to review correct answers and solutions after submission</span>
+        </label>
+      </div>
     </div>
   </fieldset>
 

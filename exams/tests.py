@@ -182,3 +182,31 @@ class SimpleImportTests(Base):
         q = Question.objects.get(stem="Identify clouds")
         self.assertTrue(q.image.name.endswith(".png"))
         self.assertEqual(q.image_alt_text, "Fluffy white clouds")
+
+    def test_stratified_sampling_balances_sections(self):
+        cat1 = Category.objects.create(module=self.module, code="AIRSPACE", title="Airspace")
+        cat2 = Category.objects.create(module=self.module, code="REGS", title="Regulations")
+        cat3 = Category.objects.create(module=self.module, code="ACCIDENTS", title="Accidents")
+        Question.objects.filter(module=self.module).delete()
+
+        for i in range(15):
+            q = Question.objects.create(code=f"AIR_{i}", module=self.module, category=cat1, question_type=Question.SINGLE, stem=f"Airspace {i}", status=Question.PUBLISHED, created_by=self.staff)
+            Option.objects.create(question=q, key="A", text="Yes", is_correct=True); Option.objects.create(question=q, key="B", text="No")
+        for i in range(10):
+            q = Question.objects.create(code=f"REG_{i}", module=self.module, category=cat2, question_type=Question.SINGLE, stem=f"Reg {i}", status=Question.PUBLISHED, created_by=self.staff)
+            Option.objects.create(question=q, key="A", text="Yes", is_correct=True); Option.objects.create(question=q, key="B", text="No")
+        for i in range(3):
+            q = Question.objects.create(code=f"ACC_{i}", module=self.module, category=cat3, question_type=Question.SINGLE, stem=f"Accident {i}", status=Question.PUBLISHED, created_by=self.staff)
+            Option.objects.create(question=q, key="A", text="Yes", is_correct=True); Option.objects.create(question=q, key="B", text="No")
+
+        exam = Exam.objects.create(code="STRAT-EXAM", title="Stratified Test", module=self.module, duration_minutes=30, question_count=9, pass_mark=75, max_attempts=2, status=Exam.PUBLISHED)
+        Assignment.objects.create(exam=exam, candidate=self.user)
+
+        attempt = start_attempt(exam, self.user)
+        self.assertEqual(attempt.attempt_questions.count(), 9)
+
+        from collections import Counter
+        drawn_categories = Counter(attempt.attempt_questions.values_list("category_code", flat=True))
+        self.assertEqual(drawn_categories["ACCIDENTS"], 3)
+        self.assertEqual(drawn_categories["REGS"], 3)
+        self.assertEqual(drawn_categories["AIRSPACE"], 3)

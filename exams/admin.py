@@ -55,8 +55,8 @@ class QuestionAdmin(admin.ModelAdmin):
 
 @admin.register(Exam)
 class ExamAdmin(admin.ModelAdmin):
-    list_display = ("title", "duration_minutes", "question_count", "pass_mark", "max_attempts", "status")
-    list_filter = ("status",)
+    list_display = ("title", "module", "duration_minutes", "question_count", "pass_mark", "max_attempts", "status")
+    list_filter = ("module", "status")
     search_fields = ("code", "title")
     inlines = [AssignmentInline]
     fieldsets = (

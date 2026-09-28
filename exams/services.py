@@ -26,6 +26,73 @@ def validate_question(question):
     if question.question_type==Question.MULTIPLE and len(correct)<2: errors.append("Multiple-choice questions require at least two correct options.")
     return errors
 
+def sample_stratified_questions(questions, count, rng):
+    """
+    Balanced Stratified Section Sampling (Civil Aviation Exam Standard).
+    Samples questions fairly across all sections/categories in the pool,
+    guaranteeing that every syllabus area is tested without bias or omission.
+    """
+    if len(questions) <= count:
+        chosen = list(questions)
+        rng.shuffle(chosen)
+        return chosen
+
+    from collections import defaultdict
+    by_category = defaultdict(list)
+    for q in questions:
+        by_category[q.category_id].append(q)
+
+    # Single category in pool: uniform random sampling
+    if len(by_category) <= 1:
+        return rng.sample(questions, count)
+
+    for cat_id in by_category:
+        rng.shuffle(by_category[cat_id])
+
+    targets = {}
+    available = {cat_id: len(qs) for cat_id, qs in by_category.items()}
+    remaining_needed = count
+    active_cats = set(by_category.keys())
+
+    # Distribute quotas iteratively so smaller sections contribute all they have
+    # and larger sections absorb the remaining deficit evenly
+    while remaining_needed > 0 and active_cats:
+        fair_share = max(1, remaining_needed // len(active_cats))
+        capped = False
+        for cat_id in list(active_cats):
+            avail = available[cat_id] - targets.get(cat_id, 0)
+            if avail <= fair_share:
+                alloc = avail
+                targets[cat_id] = targets.get(cat_id, 0) + alloc
+                remaining_needed -= alloc
+                active_cats.remove(cat_id)
+                capped = True
+        if not capped:
+            for cat_id in list(active_cats):
+                alloc = min(fair_share, remaining_needed)
+                targets[cat_id] = targets.get(cat_id, 0) + alloc
+                remaining_needed -= alloc
+                if targets[cat_id] >= available[cat_id]:
+                    active_cats.remove(cat_id)
+                if remaining_needed == 0:
+                    break
+
+    if remaining_needed > 0:
+        for cat_id, qs in by_category.items():
+            can_take = len(qs) - targets.get(cat_id, 0)
+            take = min(can_take, remaining_needed)
+            targets[cat_id] = targets.get(cat_id, 0) + take
+            remaining_needed -= take
+            if remaining_needed == 0:
+                break
+
+    chosen = []
+    for cat_id, target in targets.items():
+        chosen.extend(by_category[cat_id][:target])
+
+    rng.shuffle(chosen)
+    return chosen
+
 @transaction.atomic
 def start_attempt(exam,candidate,ip=None):
     assignment=Assignment.objects.select_for_update().filter(exam=exam,candidate=candidate,active=True).first()
@@ -37,11 +104,12 @@ def start_attempt(exam,candidate,ip=None):
         submit_attempt(current,expired=True,actor=candidate,ip=ip)
     count=Attempt.objects.filter(exam=exam,candidate=candidate).count()
     if count>=exam.max_attempts: raise ValidationError("No attempts remain.")
-    pool=list(Question.objects.filter(module=exam.module,status=Question.PUBLISHED).prefetch_related("options"))
+    pool=list(Question.objects.filter(module=exam.module,status=Question.PUBLISHED).select_related("category").prefetch_related("options"))
     valid=[q for q in pool if not validate_question(q)]
     if len(valid)<exam.question_count: raise ValidationError("The published question pool is too small or contains invalid questions.")
-    rng=secrets.SystemRandom(); chosen=rng.sample(valid,exam.question_count)
-    if not exam.shuffle_questions: chosen=sorted(chosen,key=lambda q:q.code)
+    rng=secrets.SystemRandom()
+    chosen=sample_stratified_questions(valid,exam.question_count,rng)
+    if not exam.shuffle_questions: chosen=sorted(chosen,key=lambda q:(q.category.code if q.category else "", q.code))
     now=timezone.now(); duration=exam.duration_minutes+assignment.extra_time_minutes
     attempt=Attempt.objects.create(exam=exam,candidate=candidate,attempt_number=count+1,started_at=now,expires_at=now+timedelta(minutes=duration))
     for pos,q in enumerate(chosen,1):

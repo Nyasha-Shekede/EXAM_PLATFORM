@@ -37,13 +37,17 @@ def dashboard(request):
     if request.user.is_staff:
         from django.contrib.auth import get_user_model
         User=get_user_model()
+        completed_qs = Attempt.objects.exclude(status=Attempt.IN_PROGRESS)
+        completed_count = completed_qs.count()
+        passed_count = completed_qs.filter(passed=True).count()
+        pass_rate = round((passed_count / completed_count) * 100) if completed_count > 0 else 0
         staff_summary={
-            "exams_count":Exam.objects.count(),
-            "questions_count":Question.objects.count(),
-            "candidates_count":User.objects.filter(is_staff=False).count(),
-            "completed_attempts":Attempt.objects.exclude(status=Attempt.IN_PROGRESS).count(),
-            "all_recent":Attempt.objects.exclude(status=Attempt.IN_PROGRESS).select_related("exam","candidate").order_by("-submitted_at")[:8],
-            "all_exams":Exam.objects.select_related("module").order_by("-created_at")[:12],
+            "exams_count": Exam.objects.count(),
+            "candidates_count": User.objects.filter(is_staff=False).count(),
+            "completed_attempts": completed_count,
+            "pass_rate": pass_rate,
+            "all_recent": completed_qs.select_related("exam","candidate").order_by("-submitted_at")[:8],
+            "all_exams": Exam.objects.select_related("module").order_by("-created_at")[:12],
         }
     return render(request,"exams/dashboard.html",{"rows":rows,"recent":recent,"staff_summary":staff_summary})
 @login_required
@@ -254,6 +258,16 @@ def create_exam_view(request):
             if Exam.objects.filter(code=exam_code).exists():
                 exam_code = f"{exam_code[:30]}-{uuid.uuid4().hex[:6].upper()}"
 
+            q_count_input = form.cleaned_data.get("question_count")
+            shuffle_questions = form.cleaned_data.get("shuffle_questions", True)
+            shuffle_options = form.cleaned_data.get("shuffle_options", True)
+
+            # Determine final question count: instructor specified or all available in pool
+            if q_count_input and q_count_input > 0:
+                final_question_count = min(q_count_input, published_pool)
+            else:
+                final_question_count = min(imported_count, published_pool)
+
             exam = Exam.objects.create(
                 code=exam_code,
                 title=title,
@@ -261,7 +275,9 @@ def create_exam_view(request):
                 duration_minutes=duration,
                 pass_mark=pass_mark,
                 max_attempts=max_attempts,
-                question_count=min(imported_count, published_pool),
+                question_count=final_question_count,
+                shuffle_questions=shuffle_questions,
+                shuffle_options=shuffle_options,
                 show_answers_after=show_answers,
                 status=Exam.PUBLISHED,
             )

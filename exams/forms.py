@@ -89,6 +89,23 @@ class CreateExamForm(forms.Form):
         min_value=1,
         max_value=10,
     )
+    question_count = forms.IntegerField(
+        label="Questions Per Exam Attempt",
+        required=False,
+        min_value=1,
+        help_text="Number of questions randomly selected from the uploaded pool for each student attempt (e.g. 25). Leave blank to use all.",
+        widget=forms.NumberInput(attrs={"placeholder": "e.g. 25 (leave blank to test on all)"}),
+    )
+    shuffle_questions = forms.BooleanField(
+        label="Randomize question order for each candidate attempt",
+        initial=True,
+        required=False,
+    )
+    shuffle_options = forms.BooleanField(
+        label="Randomize answer options (A, B, C, D) for each question",
+        initial=True,
+        required=False,
+    )
     show_answers_after = forms.BooleanField(
         label="Allow students to review answer solutions after submission",
         initial=False,

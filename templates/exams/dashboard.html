@@ -12,9 +12,9 @@
     <thead>
       <tr>
         <th>Active Examinations</th>
-        <th>Question Bank</th>
         <th>Enrolled Candidates</th>
         <th>Completed Submissions</th>
+        <th>Academy Pass Rate</th>
       </tr>
     </thead>
     <tbody>
@@ -24,16 +24,16 @@
           <a href="{% url 'admin:exams_exam_changelist' %}" style="display: inline-block; margin-top: 0.35rem; color: var(--adk-blue); font-size: 0.8rem; font-weight: 700; text-decoration: none;">Manage Exams →</a>
         </td>
         <td style="padding: 1.2rem;">
-          <div style="font-size: 1.85rem; font-weight: 800; color: var(--ink); line-height: 1.1;">{{ staff_summary.questions_count }}</div>
-          <a href="{% url 'admin:exams_question_changelist' %}" style="display: inline-block; margin-top: 0.35rem; color: var(--adk-blue); font-size: 0.8rem; font-weight: 700; text-decoration: none;">View Questions →</a>
-        </td>
-        <td style="padding: 1.2rem;">
           <div style="font-size: 1.85rem; font-weight: 800; color: var(--ink); line-height: 1.1;">{{ staff_summary.candidates_count }}</div>
           <a href="{% url 'admin:auth_user_changelist' %}" style="display: inline-block; margin-top: 0.35rem; color: var(--adk-blue); font-size: 0.8rem; font-weight: 700; text-decoration: none;">Manage Users →</a>
         </td>
         <td style="padding: 1.2rem;">
           <div style="font-size: 1.85rem; font-weight: 800; color: var(--ink); line-height: 1.1;">{{ staff_summary.completed_attempts }}</div>
           <a href="{% url 'admin:exams_attempt_changelist' %}" style="display: inline-block; margin-top: 0.35rem; color: var(--adk-blue); font-size: 0.8rem; font-weight: 700; text-decoration: none;">Audit Log →</a>
+        </td>
+        <td style="padding: 1.2rem;">
+          <div style="font-size: 1.85rem; font-weight: 800; color: {% if staff_summary.pass_rate >= 75 %}var(--pass){% else %}var(--adk-blue){% endif %}; line-height: 1.1;">{{ staff_summary.pass_rate }}%</div>
+          <span style="display: inline-block; margin-top: 0.35rem; color: var(--muted); font-size: 0.8rem; font-weight: 600;">Overall Performance</span>
         </td>
       </tr>
     </tbody>

@@ -106,8 +106,21 @@ def flag_question(request,attempt_id,position):
     attempt=owned_attempt(request.user,attempt_id); aq=get_object_or_404(AttemptQuestion,attempt=attempt,position=position); aq.flagged=not aq.flagged; aq.save(update_fields=["flagged"]); return JsonResponse({"ok":True,"flagged":aq.flagged})
 @login_required
 def confirm_submit(request,attempt_id):
-    attempt=owned_attempt(request.user,attempt_id); unanswered=attempt.attempt_questions.filter(Q(response__isnull=True)|Q(response__selected_keys=[])).count(); flagged=attempt.attempt_questions.filter(flagged=True).count()
-    return render(request,"exams/confirm.html",{"attempt":attempt,"unanswered":unanswered,"flagged":flagged})
+    attempt=owned_attempt(request.user,attempt_id)
+    unanswered_positions=list(attempt.attempt_questions.filter(Q(response__isnull=True)|Q(response__selected_keys=[])).order_by("position").values_list("position",flat=True))
+    flagged_positions=list(attempt.attempt_questions.filter(flagged=True).order_by("position").values_list("position",flat=True))
+    total_count=attempt.attempt_questions.count()
+    return render(request,"exams/confirm.html",{
+        "attempt":attempt,
+        "unanswered_count":len(unanswered_positions),
+        "unanswered_positions":unanswered_positions,
+        "flagged_count":len(flagged_positions),
+        "flagged_positions":flagged_positions,
+        "total_questions":total_count,
+        # Backward compatibility aliases:
+        "unanswered":len(unanswered_positions),
+        "flagged":len(flagged_positions),
+    })
 @login_required
 def finish(request,attempt_id):
     if request.method != "POST":

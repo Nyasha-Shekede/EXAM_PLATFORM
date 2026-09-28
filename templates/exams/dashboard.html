@@ -53,8 +53,12 @@
     {% for exam in staff_summary.all_exams %}
     <article class="card">
       <div class="cardtop">
-        <span class="badge">{{ exam.module.code }}</span>
-        <span>{{ exam.duration_minutes }} min</span>
+        {% if exam.module.title and exam.module.title != exam.title %}
+        <span style="font-weight: 700; color: var(--adk-blue); font-size: 0.82rem;">{{ exam.module.title }}</span>
+        {% else %}
+        <span class="muted" style="font-size: 0.82rem; font-weight: 600;">Time Limit</span>
+        {% endif %}
+        <span style="font-weight: 700;">{{ exam.duration_minutes }} min</span>
       </div>
       <h3>{{ exam.title }}</h3>
       <p class="muted">{{ exam.question_count }} questions · Pass mark {{ exam.pass_mark }}% · Max attempts: {{ exam.max_attempts }}</p>
@@ -129,8 +133,12 @@
   {% for row in rows %}
   <article class="card">
     <div class="cardtop">
-      <span class="badge">{{ row.exam.module.code }}</span>
-      <span>{{ row.exam.duration_minutes }} min</span>
+      {% if row.exam.module.title and row.exam.module.title != row.exam.title %}
+      <span style="font-weight: 700; color: var(--adk-blue); font-size: 0.82rem;">{{ row.exam.module.title }}</span>
+      {% else %}
+      <span class="muted" style="font-size: 0.82rem; font-weight: 600;">Time Limit</span>
+      {% endif %}
+      <span style="font-weight: 700;">{{ row.exam.duration_minutes }} min</span>
     </div>
     <h3>{{ row.exam.title }}</h3>
     <p class="muted">{{ row.exam.question_count }} questions · Pass mark {{ row.exam.pass_mark }}% · {{ row.remaining }} attempt{{ row.remaining|pluralize }} remaining</p>

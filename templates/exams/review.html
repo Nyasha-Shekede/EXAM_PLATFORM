@@ -1,1 +1,32 @@
-{% extends "base.html" %}{% block content %}<div class="pagehead"><div><p class="eyebrow">Post-exam review</p><h1>{{ attempt.exam.title }}</h1></div><a class="secondary" href="{% url 'result' attempt.id %}">Result summary</a></div>{% for q in questions %}<article class="review card"><h2>{{ q.position }}. {{ q.stem }}</h2>{% for o in q.snapshot_options.all %}<div class="reviewopt {% if o.is_correct %}correct{% elif o.display_key in q.response.selected_keys %}wrong{% endif %}"><b>{{ o.display_key }}</b> {{ o.text }} {% if o.is_correct %}<span>Correct answer</span>{% elif o.display_key in q.response.selected_keys %}<span>Your selection</span>{% endif %}</div>{% endfor %}<p><strong>{{ q.response.awarded_marks }} / {{ q.marks }}</strong></p>{% if q.explanation %}<p>{{ q.explanation }}</p>{% endif %}</article>{% endfor %}{% endblock %}
+{% extends "base.html" %}
+
+{% block title %}Review: {{ attempt.exam.title }} · Africa Drone Kings{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>{{ attempt.exam.title }} — Answer Review</h1>
+  </div>
+  <a class="secondary" href="{% url 'result' attempt.id %}">← Result Summary</a>
+</div>
+
+{% for q in questions %}
+<article class="review card">
+  <h2>{{ q.position }}. {{ q.stem }}</h2>
+  {% for o in q.snapshot_options.all %}
+  <div class="reviewopt {% if o.is_correct %}correct{% elif o.display_key in q.response.selected_keys %}wrong{% endif %}">
+    <b>{{ o.display_key }}</b> {{ o.text }}
+    {% if o.is_correct %}
+    <span>Correct answer</span>
+    {% elif o.display_key in q.response.selected_keys %}
+    <span>Your selection</span>
+    {% endif %}
+  </div>
+  {% endfor %}
+  <p style="margin-top: 0.8rem;"><strong>Score: {{ q.response.awarded_marks|default:"0" }} / {{ q.marks }} mark{{ q.marks|pluralize }}</strong></p>
+  {% if q.explanation %}
+  <p class="muted" style="margin-top: 0.4rem;"><strong>Explanation:</strong> {{ q.explanation }}</p>
+  {% endif %}
+</article>
+{% endfor %}
+{% endblock %}

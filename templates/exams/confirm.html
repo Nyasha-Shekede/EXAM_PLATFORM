@@ -1,1 +1,59 @@
-{% extends "base.html" %}{% block content %}<section class="dialog"><p class="eyebrow">Final check</p><h1>Submit examination?</h1><p><strong>{{ unanswered }}</strong> unanswered · <strong>{{ flagged }}</strong> flagged for review.</p><p>After submission, answers cannot be changed.</p><div class="actions"><a class="secondary" href="{% url 'question' attempt.id 1 %}">Return to questions</a><form method="post" action="{% url 'finish' attempt.id %}">{% csrf_token %}<button class="danger">Submit examination</button></form></div></section>{% endblock %}
+{% extends "base.html" %}
+
+{% block title %}Submit Examination · Africa Drone Kings{% endblock %}
+
+{% block header %}{% endblock %}
+{% block footer %}{% endblock %}
+
+{% block content %}
+<section class="dialog" style="max-width: 640px; margin: 6vh auto; padding: 2.2rem;">
+  <h1 style="font-size: 1.6rem; margin-top: 0; margin-bottom: 0.5rem;">Submit Examination?</h1>
+  <p class="muted" style="margin-bottom: 1.5rem;">After submitting, your examination attempt will be officially graded and answers cannot be altered.</p>
+
+  {% if flagged_count > 0 %}
+  <div style="margin-bottom: 1.2rem; padding: 1.1rem; background: #fffbeb; border: 1.5px solid #fde68a; border-radius: 10px;">
+    <div style="font-weight: 700; color: #92400e; margin-bottom: 0.4rem; font-size: 0.92rem;">
+      Flagged for Review ({{ flagged_count }})
+    </div>
+    <p class="muted" style="font-size: 0.82rem; margin-bottom: 0.75rem;">Click any question number to review before submitting:</p>
+    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+      {% for pos in flagged_positions %}
+      <a href="{% url 'question' attempt.id pos %}" style="display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 8px; background: #fef3c7; border: 1.5px solid #f59e0b; color: #92400e; font-weight: 800; text-decoration: none; font-size: 0.95rem; box-shadow: var(--shadow-sm);">
+        {{ pos }}
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if unanswered_count > 0 %}
+  <div style="margin-bottom: 1.2rem; padding: 1.1rem; background: #fef2f2; border: 1.5px solid #fecaca; border-radius: 10px;">
+    <div style="font-weight: 700; color: #991b1b; margin-bottom: 0.4rem; font-size: 0.92rem;">
+      Unanswered Questions ({{ unanswered_count }} of {{ total_questions }})
+    </div>
+    <p class="muted" style="font-size: 0.82rem; margin-bottom: 0.75rem;">You have not answered these questions yet. Click any number to answer:</p>
+    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+      {% for pos in unanswered_positions %}
+      <a href="{% url 'question' attempt.id pos %}" style="display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 8px; background: #fee2e2; border: 1.5px solid #ef4444; color: #991b1b; font-weight: 800; text-decoration: none; font-size: 0.95rem; box-shadow: var(--shadow-sm);">
+        {{ pos }}
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if flagged_count == 0 and unanswered_count == 0 %}
+  <div style="margin-bottom: 1.5rem; padding: 1rem 1.2rem; background: #ecfdf5; border: 1.5px solid #a7f3d0; border-radius: 10px; color: #065f46; font-weight: 600; font-size: 0.9rem;">
+    All {{ total_questions }} questions have been answered. None flagged for review.
+  </div>
+  {% endif %}
+
+  <div class="actions" style="margin-top: 1.8rem; display: flex; gap: 0.8rem; justify-content: flex-end; align-items: center;">
+    <a class="secondary" href="{% url 'question' attempt.id 1 %}" style="padding: 0.65rem 1.2rem;">Return to Questions</a>
+    <form method="post" action="{% url 'finish' attempt.id %}" style="display: inline; margin: 0;">
+      {% csrf_token %}
+      <button class="danger" style="padding: 0.65rem 1.4rem;">Submit Examination</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

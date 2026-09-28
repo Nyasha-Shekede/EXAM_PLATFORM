@@ -7,10 +7,12 @@
 <script defer src="{% static 'js/exam.js' %}"></script>
 {% endblock %}
 
+{% block header %}{% endblock %}
+{% block footer %}{% endblock %}
+
 {% block content %}
 <div class="examhead">
   <div>
-    <p class="eyebrow">{{ attempt.exam.code }}</p>
     <h1>{{ attempt.exam.title }}</h1>
   </div>
   <div class="timer" data-now="{{ now_epoch }}" data-expires="{{ expires_epoch }}" data-finish="{% url 'confirm_submit' attempt.id %}">

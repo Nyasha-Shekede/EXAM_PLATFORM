@@ -37,8 +37,10 @@
     {% endfor %}
     {% block content %}{% endblock %}
   </main>
+  {% block footer %}
   <footer>
     <p>Africa Drone Kings · Training & Examination Portal · Support: <a href="mailto:{{ SUPPORT_EMAIL }}">{{ SUPPORT_EMAIL }}</a></p>
   </footer>
+  {% endblock %}
 </body>
 </html>

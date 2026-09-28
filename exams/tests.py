@@ -287,3 +287,20 @@ class SimpleImportTests(Base):
         self.client.login(username="admin", password="Strong-pass-475")
         response = self.client.get(reverse("question", args=[attempt.id, 1]))
         self.assertEqual(response.status_code, 200)
+
+    def test_confirm_submit_shows_flagged_and_unanswered_question_numbers(self):
+        attempt = start_attempt(self.exam, self.user)
+        # Flag question 2
+        aq2 = attempt.attempt_questions.get(position=2)
+        aq2.flagged = True
+        aq2.save()
+        # Answer question 1
+        aq1 = attempt.attempt_questions.get(position=1)
+        save_response(attempt, aq1, ["A"], self.user)
+
+        self.client.login(username="C001", password="Strong-pass-473")
+        response = self.client.get(reverse("confirm_submit", args=[attempt.id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["flagged_positions"], [2])
+        self.assertIn(2, response.context["unanswered_positions"])
+        self.assertIn(3, response.context["unanswered_positions"])

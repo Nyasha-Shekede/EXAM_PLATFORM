@@ -1,1 +1,64 @@
-document.addEventListener("DOMContentLoaded",()=>{const t=document.querySelector(".timer");if(t){const serverNow=Number(t.dataset.now)*1000,expires=Number(t.dataset.expires)*1000,loaded=Date.now();const tick=()=>{const left=Math.max(0,expires-(serverNow+(Date.now()-loaded)));const s=Math.ceil(left/1000),m=Math.floor(s/60),r=s%60;document.querySelector("#timer").textContent=`${String(m).padStart(2,"0")}:${String(r).padStart(2,"0")}`;if(left<=0){location.reload();return}setTimeout(tick,250)};tick()}const form=document.querySelector("#answer-form"),state=document.querySelector("#save-state");if(form){let timer;form.querySelectorAll("input").forEach(i=>i.addEventListener("change",()=>{clearTimeout(timer);state.textContent="Saving…";timer=setTimeout(async()=>{try{const r=await fetch(form.action,{method:"POST",body:new FormData(form),headers:{"X-Requested-With":"XMLHttpRequest"}});if(!r.ok)throw new Error();state.textContent="Saved"}catch(e){state.textContent="Not saved — use Save & next or check connection"}},250)}))}const flag=document.querySelector(".flag");if(flag)flag.addEventListener("click",async()=>{const token=form.querySelector("[name=csrfmiddlewaretoken]").value;const r=await fetch(flag.dataset.url,{method:"POST",headers:{"X-CSRFToken":token}});if(r.ok){const j=await r.json();flag.textContent=j.flagged?"Unflag":"Flag for review"}})})
+document.addEventListener("DOMContentLoaded", () => {
+  const t = document.querySelector(".timer");
+  if (t) {
+    const serverNow = Number(t.dataset.now) * 1000,
+      expires = Number(t.dataset.expires) * 1000,
+      loaded = Date.now();
+    const tick = () => {
+      const left = Math.max(0, expires - (serverNow + (Date.now() - loaded)));
+      const s = Math.ceil(left / 1000),
+        m = Math.floor(s / 60),
+        r = s % 60;
+      document.querySelector("#timer").textContent = `${String(m).padStart(2, "0")}:${String(r).padStart(2, "0")}`;
+      if (left <= 0) {
+        location.reload();
+        return;
+      }
+      setTimeout(tick, 250);
+    };
+    tick();
+  }
+
+  const form = document.querySelector("#answer-form"),
+    state = document.querySelector("#save-state");
+  if (form) {
+    let timer;
+    form.querySelectorAll("input").forEach(i =>
+      i.addEventListener("change", () => {
+        clearTimeout(timer);
+        state.textContent = "Saving…";
+        timer = setTimeout(async () => {
+          try {
+            const r = await fetch(form.action, {
+              method: "POST",
+              body: new FormData(form),
+              headers: { "X-Requested-With": "XMLHttpRequest" }
+            });
+            if (!r.ok) throw new Error();
+            state.textContent = "Saved";
+            const currentPal = document.querySelector(".pal.current");
+            if (currentPal) currentPal.classList.add("answered");
+          } catch (e) {
+            state.textContent = "Not saved — use Save & next or check connection";
+          }
+        }, 250);
+      })
+    );
+  }
+
+  const flag = document.querySelector(".flag");
+  if (flag)
+    flag.addEventListener("click", async () => {
+      const token = form.querySelector("[name=csrfmiddlewaretoken]").value;
+      const r = await fetch(flag.dataset.url, {
+        method: "POST",
+        headers: { "X-CSRFToken": token }
+      });
+      if (r.ok) {
+        const j = await r.json();
+        flag.textContent = j.flagged ? "Unflag" : "Flag for review";
+        const currentPal = document.querySelector(".pal.current");
+        if (currentPal) currentPal.classList.toggle("flagged", j.flagged);
+      }
+    });
+});

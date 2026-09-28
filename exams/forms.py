@@ -111,6 +111,18 @@ class CreateExamForm(forms.Form):
         initial=False,
         required=False,
     )
+    available_from = forms.DateTimeField(
+        label="Start Time / Available From (Optional)",
+        required=False,
+        widget=forms.DateTimeInput(attrs={"type": "datetime-local"}),
+        help_text="Stealth Mode: Student cannot see this exam on their dashboard until this date & time.",
+    )
+    available_until = forms.DateTimeField(
+        label="End Time / Expiration (Optional)",
+        required=False,
+        widget=forms.DateTimeInput(attrs={"type": "datetime-local"}),
+        help_text="Students cannot start or access this exam after this date & time.",
+    )
     spreadsheet = forms.FileField(
         label="Question Spreadsheet (.xlsx or .csv)",
         widget=forms.ClearableFileInput(attrs={"accept": ".xlsx,.csv"}),
@@ -154,4 +166,12 @@ class CreateExamForm(forms.Form):
             if not name.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
                 raise forms.ValidationError(f"{name} is not a PNG, JPEG, or WebP image.")
         return files
+
+    def clean(self):
+        cleaned = super().clean()
+        af = cleaned.get("available_from")
+        au = cleaned.get("available_until")
+        if af and au and af >= au:
+            raise forms.ValidationError("Exam expiration time must be after the start time.")
+        return cleaned
 

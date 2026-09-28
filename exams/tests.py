@@ -210,3 +210,65 @@ class SimpleImportTests(Base):
         self.assertEqual(drawn_categories["ACCIDENTS"], 3)
         self.assertEqual(drawn_categories["REGS"], 3)
         self.assertEqual(drawn_categories["AIRSPACE"], 3)
+
+    def test_stealth_mode_hides_future_exam_from_student_dashboard(self):
+        # Schedule an exam in the future
+        future_time = timezone.now() + timedelta(hours=2)
+        future_exam = Exam.objects.create(
+            code="FUTURE-EXAM",
+            title="Future Secret Exam",
+            module=self.module,
+            duration_minutes=30,
+            question_count=2,
+            pass_mark=75,
+            max_attempts=1,
+            available_from=future_time,
+            status=Exam.PUBLISHED,
+        )
+        Assignment.objects.create(exam=future_exam, candidate=self.user)
+
+        self.client.login(username="C001", password="Strong-pass-473")
+        response = self.client.get(reverse("dashboard"))
+        # Candidate should NOT see the future exam in stealth mode
+        self.assertNotContains(response, "Future Secret Exam")
+
+        # Now test that when the time arrives (available_from in past), it becomes visible
+        future_exam.available_from = timezone.now() - timedelta(minutes=5)
+        future_exam.save()
+        response2 = self.client.get(reverse("dashboard"))
+        self.assertContains(response2, "Future Secret Exam")
+
+    def test_palette_order_is_strictly_sequential(self):
+        attempt = start_attempt(self.exam, self.user)
+        # Answer question 2 first
+        aq2 = attempt.attempt_questions.get(position=2)
+        save_response(attempt, aq2, ["A"], self.user)
+        # Fetch question view
+        self.client.login(username="C001", password="Strong-pass-473")
+        response = self.client.get(reverse("question", args=[attempt.id, 1]))
+        palette = list(response.context["palette"])
+        positions = [p["position"] for p in palette]
+        self.assertEqual(positions, [1, 2, 3])
+
+    def test_exam_disappears_when_max_attempts_reached(self):
+        self.exam.max_attempts = 1
+        self.exam.save()
+        attempt = start_attempt(self.exam, self.user)
+        submit_attempt(attempt, actor=self.user)
+
+        self.client.login(username="C001", password="Strong-pass-473")
+        response = self.client.get(reverse("dashboard"))
+        # Active exam card must be gone
+        self.assertEqual(len(response.context["rows"]), 0)
+        self.assertContains(response, "No Examinations Currently Assigned")
+        # Completed attempt appears in recent table
+        self.assertEqual(len(response.context["recent"]), 1)
+
+    def test_exam_disappears_when_available_until_passed(self):
+        self.exam.available_until = timezone.now() - timedelta(minutes=10)
+        self.exam.save()
+        self.client.login(username="C001", password="Strong-pass-473")
+        response = self.client.get(reverse("dashboard"))
+        # Active exam card must be gone
+        self.assertEqual(len(response.context["rows"]), 0)
+        self.assertContains(response, "No Examinations Currently Assigned")

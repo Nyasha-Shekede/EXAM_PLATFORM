@@ -31,7 +31,15 @@ def dashboard(request):
     for a in assignments:
         attempts=list(Attempt.objects.filter(candidate=request.user,exam=a.exam).order_by("attempt_number"))
         open_attempt=next((x for x in attempts if x.status==Attempt.IN_PROGRESS and x.is_open),None)
-        rows.append({"assignment":a,"exam":a.exam,"attempts":attempts,"open":open_attempt,"remaining":max(a.exam.max_attempts-len(attempts),0),"available":a.exam.is_available()})
+        is_avail=a.exam.is_available()
+        # Complete stealth: If exam is not currently open/available and student has no active in-progress attempt, conceal it completely!
+        if not is_avail and not open_attempt:
+            continue
+        remaining=max(a.exam.max_attempts-len(attempts),0)
+        # If all attempts are finished and no open attempt, hide card (results shown in completed attempts table below)
+        if remaining==0 and not open_attempt:
+            continue
+        rows.append({"assignment":a,"exam":a.exam,"attempts":attempts,"open":open_attempt,"remaining":remaining,"available":is_avail})
     recent=Attempt.objects.filter(candidate=request.user).exclude(status=Attempt.IN_PROGRESS).select_related("exam").order_by("-submitted_at")[:10]
     staff_summary=None
     if request.user.is_staff:
@@ -73,7 +81,7 @@ def question(request,attempt_id,position):
     if not aq.first_viewed_at: aq.first_viewed_at=timezone.now(); aq.save(update_fields=["first_viewed_at"])
     try: selected=aq.response.selected_keys
     except Response.DoesNotExist: selected=[]
-    palette=attempt.attempt_questions.annotate(answered=Count("response",filter=~Q(response__selected_keys=[]))).values("position","flagged","answered")
+    palette=attempt.attempt_questions.annotate(answered=Count("response",filter=~Q(response__selected_keys=[]))).values("position","flagged","answered").order_by("position")
     return render(request,"exams/question.html",{"attempt":attempt,"q":aq,"selected":selected,"palette":palette,"total":attempt.attempt_questions.count(),"now_epoch":int(timezone.now().timestamp()),"expires_epoch":int(attempt.expires_at.timestamp())})
 @login_required
 @require_POST
@@ -268,6 +276,9 @@ def create_exam_view(request):
             else:
                 final_question_count = min(imported_count, published_pool)
 
+            available_from = form.cleaned_data.get("available_from")
+            available_until = form.cleaned_data.get("available_until")
+
             exam = Exam.objects.create(
                 code=exam_code,
                 title=title,
@@ -279,6 +290,8 @@ def create_exam_view(request):
                 shuffle_questions=shuffle_questions,
                 shuffle_options=shuffle_options,
                 show_answers_after=show_answers,
+                available_from=available_from,
+                available_until=available_until,
                 status=Exam.PUBLISHED,
             )
 
@@ -292,4 +305,46 @@ def create_exam_view(request):
         form = CreateExamForm()
 
     return render(request, "exams/create_exam.html", {"form": form, "existing_modules": existing_modules})
+
+
+@user_passes_test(staff_required)
+@require_POST
+def quick_add_candidate(request):
+    import json, secrets
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    try:
+        data = json.loads(request.body)
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Invalid request payload."}, status=400)
+
+    username = data.get("username", "").strip()
+    name = data.get("name", "").strip()
+    email = data.get("email", "").strip()
+
+    if not username:
+        return JsonResponse({"ok": False, "error": "Candidate ID / Username is required."}, status=400)
+    if User.objects.filter(username__iexact=username).exists():
+        return JsonResponse({"ok": False, "error": f"Candidate with ID '{username}' already exists."}, status=400)
+
+    name_parts = name.split(" ", 1)
+    first_name = name_parts[0] if name_parts else ""
+    last_name = name_parts[1] if len(name_parts) > 1 else ""
+
+    default_pwd = f"ADK-{secrets.token_hex(3).upper()}!"
+    user = User.objects.create_user(
+        username=username,
+        email=email,
+        password=default_pwd,
+        first_name=first_name,
+        last_name=last_name,
+        is_staff=False,
+    )
+    return JsonResponse({
+        "ok": True,
+        "id": user.pk,
+        "label": f"{user.get_full_name() or user.username} ({user.username})",
+        "username": user.username,
+        "default_password": default_pwd,
+    })
 

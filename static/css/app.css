@@ -398,26 +398,32 @@ button:disabled {
 }
 
 .stack label {
-  font-weight: 600;
+  display: block;
+  font-weight: 700;
   font-size: 0.88rem;
   color: var(--ink);
+  margin-bottom: 0.25rem;
 }
 
 .stack input[type=text],
+.stack input[type=number],
+.stack input[type=email],
 .stack input[type=password],
+.stack input[type=datetime-local],
 .stack input[type=file],
 .stack select {
   display: block;
   width: 100%;
   margin-top: 0.35rem;
-  padding: 0.8rem 0.9rem;
-  border: 1.5px solid var(--line);
+  padding: 0.75rem 0.95rem;
+  border: 1.5px solid var(--line-strong);
   border-radius: 8px;
   background: var(--white);
   font-family: inherit;
   font-size: 0.95rem;
   color: var(--ink);
-  transition: border-color 0.15s;
+  box-sizing: border-box;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .stack input:focus, .stack select:focus {
@@ -549,6 +555,41 @@ button:disabled {
 .pal.current {
   outline: 2px solid var(--adk-blue);
   outline-offset: 1px;
+}
+
+.palette .key {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.2rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.palette .key span, .palette .key label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.palette .key i {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.palette .key i.answered {
+  background: var(--pass-bg);
+  border: 1.5px solid var(--pass-border);
+}
+
+.palette .key i.flagged {
+  background: #fef3c7;
+  border: 1.5px solid #f59e0b;
 }
 
 /* Question Content */

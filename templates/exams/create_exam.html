@@ -29,13 +29,13 @@
   <fieldset class="card">
     <legend style="font-weight: 700; color: var(--ink); padding: 0 0.5rem; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.05em;">1. Examination Details</legend>
     <div class="stack">
-      <div style="display: grid; grid-template-columns: 1.4fr 1fr; gap: 1rem;">
-        <label>
-          Examination Title
+      <div style="display: grid; grid-template-columns: 1.4fr 1fr; gap: 1.2rem;">
+        <div>
+          <label style="display: block; font-weight: 700; margin-bottom: 0.35rem;">Examination Title</label>
           {{ form.title }}
-        </label>
-        <label>
-          Subject / Module
+        </div>
+        <div>
+          <label style="display: block; font-weight: 700; margin-bottom: 0.35rem;">Subject / Module</label>
           {{ form.module_name }}
           <datalist id="module-options">
             {% for m in existing_modules %}
@@ -48,38 +48,50 @@
             <option value="Navigation & Flight Planning">
             <option value="RPAS Technical & Maintenance">
           </datalist>
-          <small class="muted" style="display: block; margin-top: 0.2rem;">All questions in this upload belong to this specific module.</small>
-        </label>
+          <small class="muted" style="display: block; margin-top: 0.25rem;">All questions in this upload belong to this specific module.</small>
+        </div>
       </div>
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 1rem;">
-        <label>
-          Duration (Minutes)
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1.2rem;">
+        <div>
+          <label style="display: block; font-weight: 700; margin-bottom: 0.35rem;">Duration (Minutes)</label>
           {{ form.duration_minutes }}
-        </label>
-        <label>
-          Pass Mark (%)
+        </div>
+        <div>
+          <label style="display: block; font-weight: 700; margin-bottom: 0.35rem;">Pass Mark (%)</label>
           {{ form.pass_mark }}
-        </label>
-        <label>
-          Allowed Attempts
+        </div>
+        <div>
+          <label style="display: block; font-weight: 700; margin-bottom: 0.35rem;">Allowed Attempts</label>
           {{ form.max_attempts }}
-        </label>
-        <label>
-          Questions Per Attempt
+        </div>
+        <div>
+          <label style="display: block; font-weight: 700; margin-bottom: 0.35rem;">Questions Per Attempt</label>
           {{ form.question_count }}
-          <small class="muted" style="display: block; margin-top: 0.2rem;">Leave blank to test on all.</small>
-        </label>
+          <small class="muted" style="display: block; margin-top: 0.25rem;">Leave blank to test on all.</small>
+        </div>
       </div>
-      <div style="display: grid; gap: 0.5rem; margin-top: 0.5rem;">
-        <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer;">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.2rem; margin-top: 0.2rem; padding-top: 0.9rem; border-top: 1px dashed var(--line);">
+        <div>
+          <label style="display: block; font-weight: 700; margin-bottom: 0.35rem;">Start Time / Opens At (Optional)</label>
+          {{ form.available_from }}
+          <small class="muted" style="display: block; margin-top: 0.25rem;"><strong>Stealth Mode:</strong> Hidden completely from student dashboard until this exact time.</small>
+        </div>
+        <div>
+          <label style="display: block; font-weight: 700; margin-bottom: 0.35rem;">End Time / Closes At (Optional)</label>
+          {{ form.available_until }}
+          <small class="muted" style="display: block; margin-top: 0.25rem;">Exam access closes and disappears after this cutoff.</small>
+        </div>
+      </div>
+      <div style="display: grid; gap: 0.6rem; margin-top: 0.6rem;">
+        <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; font-weight: 600;">
           {{ form.shuffle_questions }}
           <span>Randomize question order for each candidate attempt</span>
         </label>
-        <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer;">
+        <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; font-weight: 600;">
           {{ form.shuffle_options }}
           <span>Randomize answer options (A, B, C, D) for each question</span>
         </label>
-        <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer;">
+        <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; font-weight: 600;">
           {{ form.show_answers_after }}
           <span>Allow candidates to review correct answers and solutions after submission</span>
         </label>
@@ -94,37 +106,62 @@
       <a href="{% url 'import_template' %}" style="font-size: 0.82rem; font-weight: 700; color: var(--adk-blue); text-decoration: none;">📄 Download Excel Template</a>
     </div>
     <div class="stack">
-      <label>
-        Question Spreadsheet (.xlsx or .csv)
+      <div>
+        <label style="display: block; font-weight: 700; margin-bottom: 0.35rem;">Question Spreadsheet (.xlsx or .csv)</label>
         {{ form.spreadsheet }}
-        <small class="muted" style="display: block; margin-top: 0.3rem;">Dedicated to this specific subject module. Questions will be imported and published automatically for this exam.</small>
-      </label>
-      <label>
-        Diagram Images (Optional)
+        <small class="muted" style="display: block; margin-top: 0.35rem;">Dedicated to this specific subject module. Questions will be imported and published automatically for this exam.</small>
+      </div>
+      <div>
+        <label style="display: block; font-weight: 700; margin-bottom: 0.35rem;">Diagram Images (Optional)</label>
         {{ form.images }}
-        <small class="muted" style="display: block; margin-top: 0.3rem;"><strong>Format-agnostic:</strong> Select all referenced PNG/JPEG files at once. In your spreadsheet, you can type just the picture name (e.g. <code>clouds</code> or <code>clouds.png</code>).</small>
-      </label>
+        <small class="muted" style="display: block; margin-top: 0.35rem;"><strong>Format-agnostic:</strong> Select all referenced PNG/JPEG files at once. In your spreadsheet, you can type just the picture name (e.g. <code>clouds</code> or <code>clouds.png</code>).</small>
+      </div>
     </div>
   </fieldset>
 
   <!-- Step 3: Assign Candidates -->
-  <fieldset class="card" style="border: 1px solid var(--line);">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+  <fieldset class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
       <legend style="font-weight: 700; color: var(--ink); padding: 0 0.5rem; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.05em;">3. Assign Candidates</legend>
-      <button type="button" id="select-all-btn" class="secondary" style="font-size: 0.75rem; padding: 0.3rem 0.7rem;">Select All Students</button>
+      <div style="display: flex; gap: 0.5rem;">
+        <button type="button" id="toggle-add-candidate-btn" class="primary" style="font-size: 0.75rem; padding: 0.35rem 0.8rem;">+ Enroll New Student</button>
+        <button type="button" id="select-all-btn" class="secondary" style="font-size: 0.75rem; padding: 0.35rem 0.8rem;">Select All Students</button>
+      </div>
     </div>
-    {% if form.candidates.field.queryset %}
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.6rem; max-height: 240px; overflow-y: auto; padding: 0.5rem; border: 1px solid var(--line); border-radius: 8px;">
+
+    <!-- Quick Add Candidate Inline Drawer -->
+    <div id="add-candidate-panel" style="display: none; background: var(--adk-blue-subtle); border: 1.5px dashed var(--adk-blue); border-radius: 10px; padding: 1.2rem; margin-bottom: 1.2rem;">
+      <div style="font-weight: 800; font-size: 0.9rem; color: var(--ink); margin-bottom: 0.8rem;">Enroll New Candidate Student</div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) auto; gap: 0.8rem; align-items: flex-end;">
+        <div>
+          <label style="font-size: 0.8rem; font-weight: 700; display: block; margin-bottom: 0.2rem;">Full Name</label>
+          <input type="text" id="new-candidate-name" placeholder="e.g. Tendai Moyo" style="padding: 0.6rem 0.8rem; font-size: 0.88rem; width: 100%; border: 1.5px solid var(--line-strong); border-radius: 6px; box-sizing: border-box;">
+        </div>
+        <div>
+          <label style="font-size: 0.8rem; font-weight: 700; display: block; margin-bottom: 0.2rem;">Candidate ID / Username *</label>
+          <input type="text" id="new-candidate-username" placeholder="e.g. ADK-2026-005" style="padding: 0.6rem 0.8rem; font-size: 0.88rem; width: 100%; border: 1.5px solid var(--line-strong); border-radius: 6px; box-sizing: border-box;">
+        </div>
+        <div>
+          <label style="font-size: 0.8rem; font-weight: 700; display: block; margin-bottom: 0.2rem;">Email Address</label>
+          <input type="email" id="new-candidate-email" placeholder="e.g. tendai@example.com" style="padding: 0.6rem 0.8rem; font-size: 0.88rem; width: 100%; border: 1.5px solid var(--line-strong); border-radius: 6px; box-sizing: border-box;">
+        </div>
+        <div>
+          <button type="button" id="save-candidate-btn" class="primary" style="padding: 0.65rem 1.2rem; font-size: 0.82rem; height: 38px;">Add & Select</button>
+        </div>
+      </div>
+      <div id="candidate-status-msg" style="font-size: 0.82rem; margin-top: 0.6rem; font-weight: 600; display: none;"></div>
+    </div>
+
+    <div id="candidate-list" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.6rem; max-height: 240px; overflow-y: auto; padding: 0.75rem; border: 1.5px solid var(--line-strong); border-radius: 8px; background: var(--white);">
       {% for pk, choice_label in form.candidates.field.choices %}
-      <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.88rem; cursor: pointer; padding: 0.3rem;">
-        <input type="checkbox" name="candidates" value="{{ pk }}" class="candidate-checkbox">
+      <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.88rem; cursor: pointer; padding: 0.35rem 0.5rem; border-radius: 6px; background: var(--bg);">
+        <input type="checkbox" name="candidates" value="{{ pk }}" class="candidate-checkbox" style="width: 16px; height: 16px; accent-color: var(--adk-blue);">
         <span>{{ choice_label }}</span>
       </label>
+      {% empty %}
+      <p class="muted" id="no-candidates-msg" style="grid-column: 1 / -1; margin: 0.5rem 0;">No candidate accounts found. Click <strong>+ Enroll New Student</strong> above to add one.</p>
       {% endfor %}
     </div>
-    {% else %}
-    <p class="muted">No candidate student accounts found. You can assign candidates later in the dashboard.</p>
-    {% endif %}
   </fieldset>
 
   <div style="display: flex; gap: 1rem; align-items: center; margin-top: 1rem;">
@@ -135,13 +172,84 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", function() {
-  const btn = document.getElementById("select-all-btn");
-  if (btn) {
-    btn.addEventListener("click", function() {
+  const selectAllBtn = document.getElementById("select-all-btn");
+  if (selectAllBtn) {
+    selectAllBtn.addEventListener("click", function() {
       const boxes = document.querySelectorAll(".candidate-checkbox");
       const anyUnchecked = Array.from(boxes).some(b => !b.checked);
       boxes.forEach(b => b.checked = anyUnchecked);
-      btn.textContent = anyUnchecked ? "Deselect All" : "Select All Students";
+      selectAllBtn.textContent = anyUnchecked ? "Deselect All" : "Select All Students";
+    });
+  }
+
+  const toggleBtn = document.getElementById("toggle-add-candidate-btn");
+  const panel = document.getElementById("add-candidate-panel");
+  const saveBtn = document.getElementById("save-candidate-btn");
+  const statusMsg = document.getElementById("candidate-status-msg");
+  const listContainer = document.getElementById("candidate-list");
+
+  if (toggleBtn && panel) {
+    toggleBtn.addEventListener("click", function() {
+      panel.style.display = panel.style.display === "none" ? "block" : "none";
+      if (panel.style.display === "block") {
+        document.getElementById("new-candidate-name").focus();
+      }
+    });
+  }
+
+  if (saveBtn) {
+    saveBtn.addEventListener("click", async function() {
+      const name = document.getElementById("new-candidate-name").value.trim();
+      const username = document.getElementById("new-candidate-username").value.trim();
+      const email = document.getElementById("new-candidate-email").value.trim();
+
+      statusMsg.style.display = "block";
+      statusMsg.style.color = "var(--ink)";
+      statusMsg.textContent = "Creating student account...";
+
+      if (!username) {
+        statusMsg.style.color = "var(--fail)";
+        statusMsg.textContent = "Candidate ID / Username is required.";
+        return;
+      }
+
+      try {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const res = await fetch("{% url 'quick_add_candidate' %}", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": csrfToken,
+          },
+          body: JSON.stringify({ name, username, email }),
+        });
+        const data = await res.json();
+        if (data.ok) {
+          statusMsg.style.color = "var(--pass)";
+          statusMsg.textContent = `Student created: ${data.username} (Password: ${data.default_password})`;
+
+          const emptyMsg = document.getElementById("no-candidates-msg");
+          if (emptyMsg) emptyMsg.remove();
+
+          const label = document.createElement("label");
+          label.style = "display: flex; align-items: center; gap: 0.5rem; font-size: 0.88rem; cursor: pointer; padding: 0.35rem 0.5rem; border-radius: 6px; background: #e8f4fc; border: 1px solid #bfdbfe;";
+          label.innerHTML = `
+            <input type="checkbox" name="candidates" value="${data.id}" class="candidate-checkbox" checked style="width: 16px; height: 16px; accent-color: var(--adk-blue);">
+            <span><strong>${data.label}</strong> (New)</span>
+          `;
+          listContainer.prepend(label);
+
+          document.getElementById("new-candidate-name").value = "";
+          document.getElementById("new-candidate-username").value = "";
+          document.getElementById("new-candidate-email").value = "";
+        } else {
+          statusMsg.style.color = "var(--fail)";
+          statusMsg.textContent = data.error || "Failed to create candidate.";
+        }
+      } catch (err) {
+        statusMsg.style.color = "var(--fail)";
+        statusMsg.textContent = "Error communicating with server.";
+      }
     });
   }
 });

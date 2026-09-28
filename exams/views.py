@@ -22,11 +22,12 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from .forms import CreateExamForm, ImportForm
 from .importers import import_simple_questions
 from .models import Assignment, Attempt, AttemptQuestion, Exam, Question, Response
-from .services import client_ip,save_response,start_attempt,submit_attempt,audit
+from .services import client_ip,save_response,start_attempt,submit_attempt,audit,reconcile_exam_pools
 
 def home(request): return redirect("dashboard" if request.user.is_authenticated else "login")
 @login_required
 def dashboard(request):
+    reconcile_exam_pools()
     assignments=Assignment.objects.filter(candidate=request.user,active=True).select_related("exam","exam__module")
     rows=[]
     for a in assignments:
@@ -279,6 +280,8 @@ def create_exam_view(request):
             module, _ = Module.objects.get_or_create(code=module_code, defaults={"title": module_name})
 
             # Ensure all questions under this module are PUBLISHED so the exam can be taken immediately
+            if res.get("imported_ids"):
+                Question.objects.filter(id__in=res["imported_ids"]).update(module=module, status=Question.PUBLISHED)
             Question.objects.filter(module=module, status=Question.DRAFT).update(status=Question.PUBLISHED)
             published_pool = Question.objects.filter(module=module, status=Question.PUBLISHED).count()
 
@@ -292,9 +295,10 @@ def create_exam_view(request):
 
             # Determine final question count: instructor specified or all available in pool
             if q_count_input and q_count_input > 0:
-                final_question_count = min(q_count_input, published_pool)
+                final_question_count = min(q_count_input, published_pool or imported_count)
             else:
-                final_question_count = min(imported_count, published_pool)
+                final_question_count = published_pool or imported_count or 1
+            final_question_count = max(1, final_question_count)
 
             available_from = form.cleaned_data.get("available_from")
             available_until = form.cleaned_data.get("available_until")

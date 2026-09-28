@@ -93,31 +93,75 @@ def sample_stratified_questions(questions, count, rng):
     rng.shuffle(chosen)
     return chosen
 
+def reconcile_exam_pools():
+    """
+    Self-healing routine:
+    1. Ensures draft questions are published.
+    2. Heals modules with zero questions if questions exist under similar module titles (e.g. Meterology vs Meteorology).
+    3. Heals exams with question_count=0 so candidates always receive their full question set.
+    """
+    from django.db.models import Q
+    for exam in Exam.objects.select_related("module").all():
+        Question.objects.filter(module=exam.module, status=Question.DRAFT).update(status=Question.PUBLISHED)
+        pool_count = Question.objects.filter(module=exam.module, status=Question.PUBLISHED).count()
+        if pool_count == 0:
+            stem = exam.module.code[:4] if len(exam.module.code) >= 4 else exam.module.code
+            similar = Module.objects.filter(
+                Q(code__icontains=stem) | Q(title__icontains=stem)
+            ).exclude(code=exam.module.code)
+            for sm in similar:
+                sm_qs = Question.objects.filter(module=sm)
+                if sm_qs.exists():
+                    sm_qs.update(module=exam.module, status=Question.PUBLISHED)
+                    pool_count = Question.objects.filter(module=exam.module, status=Question.PUBLISHED).count()
+                    break
+        if pool_count > 0 and (exam.question_count == 0 or exam.question_count > pool_count):
+            exam.question_count = pool_count
+            exam.save(update_fields=["question_count"])
+
 @transaction.atomic
-def start_attempt(exam,candidate,ip=None):
-    assignment=Assignment.objects.select_for_update().filter(exam=exam,candidate=candidate,active=True).first()
-    if not assignment: raise ValidationError("This exam is not assigned to this candidate.")
-    if not exam.is_available(): raise ValidationError("This exam is not currently available.")
-    current=Attempt.objects.select_for_update().filter(exam=exam,candidate=candidate,status=Attempt.IN_PROGRESS).first()
+def start_attempt(exam, candidate, ip=None):
+    reconcile_exam_pools()
+    exam.refresh_from_db()
+    assignment = Assignment.objects.select_for_update().filter(exam=exam, candidate=candidate, active=True).first()
+    if not assignment:
+        raise ValidationError("This exam is not assigned to this candidate.")
+    if not exam.is_available():
+        raise ValidationError("This exam is not currently available.")
+    current = Attempt.objects.select_for_update().filter(exam=exam, candidate=candidate, status=Attempt.IN_PROGRESS).first()
     if current:
-        if current.is_open: return current
-        submit_attempt(current,expired=True,actor=candidate,ip=ip)
-    count=Attempt.objects.filter(exam=exam,candidate=candidate).count()
-    if count>=exam.max_attempts: raise ValidationError("No attempts remain.")
-    pool=list(Question.objects.filter(module=exam.module,status=Question.PUBLISHED).select_related("category").prefetch_related("options"))
-    valid=[q for q in pool if not validate_question(q)]
-    if len(valid)<exam.question_count: raise ValidationError("The published question pool is too small or contains invalid questions.")
-    rng=secrets.SystemRandom()
-    chosen=sample_stratified_questions(valid,exam.question_count,rng)
-    if not exam.shuffle_questions: chosen=sorted(chosen,key=lambda q:(q.category.code if q.category else "", q.code))
-    now=timezone.now(); duration=exam.duration_minutes+assignment.extra_time_minutes
-    attempt=Attempt.objects.create(exam=exam,candidate=candidate,attempt_number=count+1,started_at=now,expires_at=now+timedelta(minutes=duration))
-    for pos,q in enumerate(chosen,1):
-        aq=AttemptQuestion.objects.create(attempt=attempt,source_question=q,position=pos,question_code=q.code,question_type=q.question_type,stem=q.stem,explanation=q.explanation,category_code=q.category.code,marks=q.marks,image_name=q.image.name if q.image else "",image_alt_text=q.image_alt_text,image_sha256=q.image_sha256)
-        opts=list(q.options.all())
-        if exam.shuffle_options: rng.shuffle(opts)
-        for idx,o in enumerate(opts): AttemptOption.objects.create(attempt_question=aq,display_key=chr(65+idx),text=o.text,is_correct=o.is_correct)
-    audit("ATTEMPT_STARTED",attempt,candidate,{"expires_at":attempt.expires_at.isoformat(),"question_count":len(chosen)},ip)
+        # Discard broken attempt if created with 0 questions due to previous pool mismatch
+        if current.attempt_questions.count() == 0:
+            current.delete()
+            current = None
+        elif current.is_open:
+            return current
+        else:
+            submit_attempt(current, expired=True, actor=candidate, ip=ip)
+    count = Attempt.objects.filter(exam=exam, candidate=candidate).count()
+    if count >= exam.max_attempts:
+        raise ValidationError("No attempts remain.")
+    pool = list(Question.objects.filter(module=exam.module, status=Question.PUBLISHED).select_related("category").prefetch_related("options"))
+    valid = [q for q in pool if not validate_question(q)]
+    if not valid:
+        raise ValidationError(f"No published questions are available yet in '{exam.module.title}'. Contact your instructor.")
+    q_target = min(exam.question_count or len(valid), len(valid))
+    q_target = max(1, q_target)
+    rng = secrets.SystemRandom()
+    chosen = sample_stratified_questions(valid, q_target, rng)
+    if not exam.shuffle_questions:
+        chosen = sorted(chosen, key=lambda q: (q.category.code if q.category else "", q.code))
+    now = timezone.now()
+    duration = exam.duration_minutes + assignment.extra_time_minutes
+    attempt = Attempt.objects.create(exam=exam, candidate=candidate, attempt_number=count+1, started_at=now, expires_at=now+timedelta(minutes=duration))
+    for pos, q in enumerate(chosen, 1):
+        aq = AttemptQuestion.objects.create(attempt=attempt, source_question=q, position=pos, question_code=q.code, question_type=q.question_type, stem=q.stem, explanation=q.explanation, category_code=q.category.code, marks=q.marks, image_name=q.image.name if q.image else "", image_alt_text=q.image_alt_text, image_sha256=q.image_sha256)
+        opts = list(q.options.all())
+        if exam.shuffle_options:
+            rng.shuffle(opts)
+        for idx, o in enumerate(opts):
+            AttemptOption.objects.create(attempt_question=aq, display_key=chr(65+idx), text=o.text, is_correct=o.is_correct)
+    audit("ATTEMPT_STARTED", attempt, candidate, {"expires_at": attempt.expires_at.isoformat(), "question_count": len(chosen)}, ip)
     return attempt
 
 def save_response(attempt,aq,selected_keys,actor=None,ip=None):

@@ -182,7 +182,7 @@ def validate_simple_rows(rows, assets_by_name, assets_by_stem, default_module=No
     for row_number, source in enumerate(rows, 2):
         row = {h: clean(source.get(h, "")) for h in SIMPLE_HEADERS}
         row_errors = []
-        module_title = row["module"] or default_module or "General Aviation"
+        module_title = default_module or row["module"] or "General Aviation"
         category_title = row["category"] or "General"
         if not module_title:
             row_errors.append("Module / Subject is required")
@@ -237,6 +237,7 @@ def import_simple_questions(spreadsheet, image_uploads, user, default_module=Non
     if errors:
         return {"ok": False, "rows": len(rows), "imported": 0, "errors": errors, "unused_images": []}
     imported = 0
+    imported_ids = []
     used_images = set()
     for item in parsed:
         module, _ = Module.objects.get_or_create(
@@ -251,7 +252,7 @@ def import_simple_questions(spreadsheet, image_uploads, user, default_module=Non
         question = Question.objects.create(
             code=code, module=module, category=category,
             question_type=item["question_type"], stem=item["stem"],
-            marks=1, difficulty="MEDIUM", status=Question.DRAFT,
+            marks=1, difficulty="MEDIUM", status=Question.PUBLISHED,
             image_alt_text=item["image_alt_text"], created_by=user,
         )
         Option.objects.bulk_create([
@@ -264,5 +265,6 @@ def import_simple_questions(spreadsheet, image_uploads, user, default_module=Non
             question.image.save(f"{question.code}{extension}", ContentFile(data), save=True)
             used_images.add(item["image_name"].lower())
         imported += 1
+        imported_ids.append(question.id)
     unused = sorted(name for name, (original, _) in assets_by_name.items() if name not in used_images)
-    return {"ok": True, "rows": len(rows), "imported": imported, "errors": [], "unused_images": unused}
+    return {"ok": True, "rows": len(rows), "imported": imported, "imported_ids": imported_ids, "errors": [], "unused_images": unused}

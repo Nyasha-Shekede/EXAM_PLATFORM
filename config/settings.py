@@ -4,8 +4,19 @@ import dj_database_url
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-only-change-me")
 DEBUG = os.getenv("DEBUG", "1") == "1"
-ALLOWED_HOSTS = [x.strip() for x in os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1,testserver").split(",") if x.strip()]
+ALLOWED_HOSTS = [x.strip() for x in os.getenv("ALLOWED_HOSTS", "*").split(",") if x.strip()] or ["*"]
 CSRF_TRUSTED_ORIGINS = [x.strip() for x in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",") if x.strip()]
+for _origin in [
+    "https://*.cloudspaces.litng.ai",
+    "https://*.litng.ai",
+    "https://*.lightning.ai",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://localhost:8080",
+    "http://127.0.0.1:8080",
+]:
+    if _origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(_origin)
 INSTALLED_APPS = ["django.contrib.admin","django.contrib.auth","django.contrib.contenttypes","django.contrib.sessions","django.contrib.messages","django.contrib.staticfiles","exams"]
 MIDDLEWARE = ["django.middleware.security.SecurityMiddleware","whitenoise.middleware.WhiteNoiseMiddleware","django.contrib.sessions.middleware.SessionMiddleware","django.middleware.common.CommonMiddleware","django.middleware.csrf.CsrfViewMiddleware","django.contrib.auth.middleware.AuthenticationMiddleware","django.contrib.messages.middleware.MessageMiddleware","django.middleware.clickjacking.XFrameOptionsMiddleware"]
 ROOT_URLCONF = "config.urls"
@@ -31,14 +42,16 @@ SUPPORT_EMAIL = os.getenv("SUPPORT_EMAIL", "training@africadronekings.com")
 SECURE_PROXY_SSL_HEADER=("HTTP_X_FORWARDED_PROTO","https")
 SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "0" if DEBUG else "1") == "1"
 CSRF_COOKIE_SECURE = os.getenv("CSRF_COOKIE_SECURE", "0" if DEBUG else "1") == "1"
+CSRF_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_SAMESITE = "Lax"
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "0" if DEBUG else "1") == "1"
 SECURE_HSTS_SECONDS=int(os.getenv("SECURE_HSTS_SECONDS","31536000" if not DEBUG else "0"))
 SECURE_HSTS_INCLUDE_SUBDOMAINS=os.getenv("SECURE_HSTS_INCLUDE_SUBDOMAINS","1") == "1"
 SECURE_HSTS_PRELOAD=os.getenv("SECURE_HSTS_PRELOAD","0") == "1"
 SECURE_REFERRER_POLICY="same-origin"
-X_FRAME_OPTIONS="DENY"
-FILE_UPLOAD_MAX_MEMORY_SIZE=8*1024*1024
-DATA_UPLOAD_MAX_MEMORY_SIZE=12*1024*1024
+X_FRAME_OPTIONS="SAMEORIGIN"
+FILE_UPLOAD_MAX_MEMORY_SIZE=50*1024*1024
+DATA_UPLOAD_MAX_MEMORY_SIZE=50*1024*1024
 
 AUTHENTICATION_BACKENDS=["exams.auth.UsernameOrEmailBackend"]

@@ -875,3 +875,7 @@ tbody tr:hover {
     font-size: 1.15rem;
   }
 }
+
+.timezonewarning {
+  display: none !important;
+}

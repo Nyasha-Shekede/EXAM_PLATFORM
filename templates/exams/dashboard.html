@@ -44,8 +44,9 @@
 <section style="margin-bottom: 2.8rem;">
   <div class="pagehead" style="margin-bottom: 1.2rem;">
     <h2 class="section-title">Examinations</h2>
-    <div style="display: flex; gap: 0.6rem; align-items: center;">
+    <div style="display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap;">
       <a class="primary" href="{% url 'create_exam' %}" style="padding: 0.55rem 1.1rem; font-size: 0.82rem;">Create Examination</a>
+      <a class="secondary" href="{% url 'admin:auth_user_changelist' %}" style="padding: 0.55rem 1.1rem; font-size: 0.82rem;">Edit Users</a>
       <a class="secondary" href="{% url 'admin:exams_exam_changelist' %}" style="padding: 0.55rem 1.1rem; font-size: 0.82rem;">Manage All Exams</a>
     </div>
   </div>

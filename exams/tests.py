@@ -304,3 +304,15 @@ class SimpleImportTests(Base):
         self.assertEqual(response.context["flagged_positions"], [2])
         self.assertIn(2, response.context["unanswered_positions"])
         self.assertIn(3, response.context["unanswered_positions"])
+
+    def test_csv_accepts_section_and_stem_aliases(self):
+        csv_data = "Section,Stem,Option A,Option B,Correct Answer\nAirspace,What is Class G?,Controlled,Uncontrolled,B\n"
+        upload = SimpleUploadedFile("test.csv", csv_data.encode("utf-8"), content_type="text/csv")
+        result = import_simple_questions(upload, [], self.staff, default_module="Air Law")
+        self.assertTrue(result["ok"])
+        q = Question.objects.get(stem="What is Class G?")
+        self.assertEqual(q.category.title, "Airspace")
+
+    def test_timezone_is_africa_harare(self):
+        from django.conf import settings
+        self.assertEqual(settings.TIME_ZONE, "Africa/Harare")

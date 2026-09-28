@@ -20,9 +20,9 @@
       <dt>Attempt</dt>
       <dd>{{ attempt.attempt_number }} of {{ attempt.exam.max_attempts }}</dd>
       <dt>Started</dt>
-      <dd>{{ attempt.started_at|date:"Y-m-d H:i" }}</dd>
+      <dd>{{ attempt.started_at|date:"Y-m-d H:i" }} CAT (UTC+2)</dd>
       <dt>Submitted</dt>
-      <dd>{{ attempt.submitted_at|date:"Y-m-d H:i" }}</dd>
+      <dd>{{ attempt.submitted_at|date:"Y-m-d H:i" }} CAT (UTC+2)</dd>
       <dt>Status</dt>
       <dd>{{ attempt.get_status_display }}</dd>
     </dl>

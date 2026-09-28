@@ -122,10 +122,12 @@ def read_simple_rows(name, data):
         raise ValueError("The spreadsheet is empty.")
     headers = [_normalise_header(v) for v in values[0]]
     aliases = {
-        "correct": "correct_answer", "correct_answers": "correct_answer",
-        "picture": "image", "picture_filename": "image", "image_filename": "image",
-        "alt_text": "image_description", "image_alt_text": "image_description",
-        "question_text": "question", "topic": "category", "subtopic": "category",
+        "correct": "correct_answer", "correct_answers": "correct_answer", "answer": "correct_answer",
+        "picture": "image", "picture_filename": "image", "image_filename": "image", "diagram": "image",
+        "alt_text": "image_description", "image_alt_text": "image_description", "description": "image_description",
+        "question_text": "question", "stem": "question",
+        "topic": "category", "subtopic": "category", "section": "category", "sections": "category",
+        "chapter": "category", "syllabus_section": "category",
     }
     headers = [aliases.get(h, h) for h in headers]
     # Note: 'module' is no longer required in the spreadsheet since exams are module-specific.

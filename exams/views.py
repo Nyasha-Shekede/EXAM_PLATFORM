@@ -206,7 +206,7 @@ def template_download(request):
     sheet.auto_filter.ref = "A1:I1"
     widths = [24, 60, 32, 32, 32, 32, 20, 26, 48]
     notes = {
-        "Category": "Optional. Topic/Chapter within this exam subject (e.g. Airspace, Weather Limits, Altimetry). Leave blank for General.",
+        "Category": "Optional. Syllabus Section / Chapter within this subject module (e.g. Airspace, Rules of the Air, Navigation). Used for Balanced Stratified Section Sampling. Leave blank for General.",
         "Question": "Required. Enter the question stem.",
         "Option A": "Required.", "Option B": "Required.",
         "Option C": "Optional.", "Option D": "Optional.",

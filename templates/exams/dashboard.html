@@ -19,21 +19,17 @@
     </thead>
     <tbody>
       <tr>
-        <td style="padding: 1.2rem;">
-          <div style="font-size: 1.85rem; font-weight: 800; color: var(--ink); line-height: 1.1;">{{ staff_summary.exams_count }}</div>
-          <a href="{% url 'admin:exams_exam_changelist' %}" style="display: inline-block; margin-top: 0.35rem; color: var(--adk-blue); font-size: 0.8rem; font-weight: 700; text-decoration: none;">Manage Exams →</a>
+        <td style="padding: 1.2rem; font-size: 1.85rem; font-weight: 800; color: var(--ink); line-height: 1.1;">
+          {{ staff_summary.exams_count }}
         </td>
-        <td style="padding: 1.2rem;">
-          <div style="font-size: 1.85rem; font-weight: 800; color: var(--ink); line-height: 1.1;">{{ staff_summary.candidates_count }}</div>
-          <a href="{% url 'admin:auth_user_changelist' %}" style="display: inline-block; margin-top: 0.35rem; color: var(--adk-blue); font-size: 0.8rem; font-weight: 700; text-decoration: none;">Manage Users →</a>
+        <td style="padding: 1.2rem; font-size: 1.85rem; font-weight: 800; color: var(--ink); line-height: 1.1;">
+          {{ staff_summary.candidates_count }}
         </td>
-        <td style="padding: 1.2rem;">
-          <div style="font-size: 1.85rem; font-weight: 800; color: var(--ink); line-height: 1.1;">{{ staff_summary.completed_attempts }}</div>
-          <a href="{% url 'admin:exams_attempt_changelist' %}" style="display: inline-block; margin-top: 0.35rem; color: var(--adk-blue); font-size: 0.8rem; font-weight: 700; text-decoration: none;">Audit Log →</a>
+        <td style="padding: 1.2rem; font-size: 1.85rem; font-weight: 800; color: var(--ink); line-height: 1.1;">
+          {{ staff_summary.completed_attempts }}
         </td>
-        <td style="padding: 1.2rem;">
-          <div style="font-size: 1.85rem; font-weight: 800; color: {% if staff_summary.pass_rate >= 75 %}var(--pass){% else %}var(--adk-blue){% endif %}; line-height: 1.1;">{{ staff_summary.pass_rate }}%</div>
-          <span style="display: inline-block; margin-top: 0.35rem; color: var(--muted); font-size: 0.8rem; font-weight: 600;">Overall Performance</span>
+        <td style="padding: 1.2rem; font-size: 1.85rem; font-weight: 800; color: {% if staff_summary.pass_rate >= 75 %}var(--pass){% else %}var(--adk-blue){% endif %}; line-height: 1.1;">
+          {{ staff_summary.pass_rate }}%
         </td>
       </tr>
     </tbody>
@@ -47,7 +43,7 @@
     <div style="display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap;">
       <a class="primary" href="{% url 'create_exam' %}" style="padding: 0.55rem 1.1rem; font-size: 0.82rem;">Create Examination</a>
       <a class="secondary" href="{% url 'admin:auth_user_changelist' %}" style="padding: 0.55rem 1.1rem; font-size: 0.82rem;">Edit Users</a>
-      <a class="secondary" href="{% url 'admin:exams_exam_changelist' %}" style="padding: 0.55rem 1.1rem; font-size: 0.82rem;">Manage All Exams</a>
+      <a class="secondary" href="{% url 'admin:exams_auditevent_changelist' %}" style="padding: 0.55rem 1.1rem; font-size: 0.82rem;">Audit Logs</a>
     </div>
   </div>
   <div class="grid">

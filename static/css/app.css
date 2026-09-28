@@ -879,3 +879,21 @@ tbody tr:hover {
 .timezonewarning {
   display: none !important;
 }
+
+.breadcrumbs,
+div.breadcrumbs,
+#breadcrumbs,
+[class*="breadcrumb"],
+.breadcrumbs-bar {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  max-height: 0 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  overflow: hidden !important;
+}

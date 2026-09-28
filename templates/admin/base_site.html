@@ -24,6 +24,37 @@
 {% block nav-global %}{% endblock %}
 {% block breadcrumbs %}{% endblock %}
 
+{% block extrahead %}
+<style>
+  .breadcrumbs, div.breadcrumbs, #breadcrumbs, [class*="breadcrumb"], .breadcrumbs-bar {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    max-height: 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    pointer-events: none !important;
+    overflow: hidden !important;
+  }
+</style>
+<script>
+  (function() {
+    function purge() {
+      document.querySelectorAll('.breadcrumbs, [class*="breadcrumb"]').forEach(function(el) {
+        el.remove();
+      });
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', purge);
+    } else {
+      purge();
+    }
+  })();
+</script>
+{% endblock %}
+
 {% block extrastyle %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

@@ -81,6 +81,24 @@ class AttemptAdmin(admin.ModelAdmin):
     def has_change_permission(self, request, obj=None):
         return False
 
+@admin.register(AuditEvent)
+class AuditEventAdmin(admin.ModelAdmin):
+    verbose_name = "Audit Log"
+    verbose_name_plural = "Audit Logs"
+    list_display = ("at", "action", "actor", "object_type", "object_id", "ip_address")
+    list_filter = ("action", "object_type")
+    search_fields = ("action", "object_id", "actor__username", "ip_address")
+    readonly_fields = [f.name for f in AuditEvent._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
 admin.site.site_header = "Africa Drone Kings"
 admin.site.site_title = "Africa Drone Kings"
 admin.site.index_title = "Academy Management"

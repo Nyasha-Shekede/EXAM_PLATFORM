@@ -4,6 +4,7 @@ urlpatterns = [
     path("", views.home, name="home"),
     path("dashboard/", views.dashboard, name="dashboard"),
     path("exams/new/", views.create_exam_view, name="create_exam"),
+    path("exams/<uuid:exam_id>/delete/", views.delete_exam, name="delete_exam"),
     path("candidates/quick-add/", views.quick_add_candidate, name="quick_add_candidate"),
     path("exams/<uuid:exam_id>/begin/", views.begin, name="begin"),
     path("attempts/<uuid:attempt_id>/questions/<int:position>/", views.question, name="question"),

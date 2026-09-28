@@ -54,7 +54,9 @@
     {% for exam in staff_summary.all_exams %}
     <article class="card">
       <div class="cardtop">
-        {% if exam.module.title and exam.module.title != exam.title %}
+        {% if exam.available_until and staff_summary.now > exam.available_until %}
+        <span style="font-weight: 800; color: var(--fail); font-size: 0.82rem;">EXPIRED</span>
+        {% elif exam.module.title and exam.module.title != exam.title %}
         <span style="font-weight: 700; color: var(--adk-blue); font-size: 0.82rem;">{{ exam.module.title }}</span>
         {% else %}
         <span class="muted" style="font-size: 0.82rem; font-weight: 600;">Time Limit</span>
@@ -63,8 +65,12 @@
       </div>
       <h3>{{ exam.title }}</h3>
       <p class="muted">{{ exam.question_count }} questions · Pass mark {{ exam.pass_mark }}% · Max attempts: {{ exam.max_attempts }}</p>
-      <div style="margin-top: 1.2rem;">
-        <a class="secondary" href="{% url 'admin:exams_exam_change' exam.id %}" style="display: block; font-size: 0.8rem; padding: 0.55rem; text-align: center; width: 100%; box-sizing: border-box;">Manage / Edit Exam</a>
+      <div style="margin-top: 1.2rem; display: flex; gap: 0.5rem; align-items: center;">
+        <a class="secondary" href="{% url 'admin:exams_exam_change' exam.id %}" style="flex: 1; font-size: 0.8rem; padding: 0.55rem; text-align: center; box-sizing: border-box;">Manage / Edit Exam</a>
+        <form method="post" action="{% url 'delete_exam' exam.id %}" onsubmit="return confirm('Are you sure you want to permanently delete \'{{ exam.title|escapejs }}\'? This will remove the exam and all candidate assignments.');" style="margin: 0;">
+          {% csrf_token %}
+          <button type="submit" style="background: none; border: 1.5px solid var(--line-strong); color: var(--fail); font-size: 0.8rem; font-weight: 700; padding: 0.55rem 0.85rem; border-radius: 6px; cursor: pointer;">Delete</button>
+        </form>
       </div>
     </article>
     {% empty %}
@@ -134,7 +140,9 @@
   {% for row in rows %}
   <article class="card">
     <div class="cardtop">
-      {% if row.exam.module.title and row.exam.module.title != row.exam.title %}
+      {% if row.is_expired %}
+      <span style="font-weight: 800; color: var(--fail); font-size: 0.82rem; text-transform: uppercase;">EXPIRED</span>
+      {% elif row.exam.module.title and row.exam.module.title != row.exam.title %}
       <span style="font-weight: 700; color: var(--adk-blue); font-size: 0.82rem;">{{ row.exam.module.title }}</span>
       {% else %}
       <span class="muted" style="font-size: 0.82rem; font-weight: 600;">Time Limit</span>
@@ -143,7 +151,9 @@
     </div>
     <h3>{{ row.exam.title }}</h3>
     <p class="muted">{{ row.exam.question_count }} questions · Pass mark {{ row.exam.pass_mark }}% · {{ row.remaining }} attempt{{ row.remaining|pluralize }} remaining</p>
-    {% if row.open %}
+    {% if row.is_expired %}
+    <button disabled class="secondary" style="width: 100%; opacity: 0.6; cursor: not-allowed;">Time Expired</button>
+    {% elif row.open %}
     <a class="primary" href="{% url 'question' row.open.id 1 %}">Resume Attempt</a>
     {% elif row.available and row.remaining %}
     <form method="post" action="{% url 'begin' row.exam.id %}">
@@ -151,7 +161,7 @@
       <button class="primary" type="submit">Start Examination</button>
     </form>
     {% else %}
-    <button disabled>Not Available</button>
+    <button disabled class="secondary" style="width: 100%; opacity: 0.6; cursor: not-allowed;">Not Available</button>
     {% endif %}
   </article>
   {% empty %}

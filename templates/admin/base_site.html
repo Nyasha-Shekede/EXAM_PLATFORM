@@ -5,7 +5,7 @@
 
 {% block branding %}
 <div id="site-name">
-  <a href="{% url 'admin:index' %}" style="display: flex; align-items: center; text-decoration: none;">
+  <a href="{% url 'dashboard' %}" style="display: flex; align-items: center; text-decoration: none;" title="Return to Overview">
     <img src="{% static 'img/adk-logo.png' %}" alt="Africa Drone Kings" style="height: 40px; width: auto; object-fit: contain; margin: 4px 0;">
   </a>
 </div>
@@ -15,7 +15,6 @@
 
 {% block userlinks %}
   <span style="font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #1483c6; background: #e8f4fc; padding: 4px 10px; border-radius: 6px; border: 1px solid #bfdbfe; margin-right: 12px;">INSTRUCTOR</span>
-  <a href="{% url 'dashboard' %}" style="margin-right: 14px; color: #1483c6; font-weight: 700; text-decoration: none; font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase;">PORTAL</a>
   <form id="logout-form" method="post" action="{% url 'admin:logout' %}" style="display: inline;">
     {% csrf_token %}
     <button type="submit" style="background: none; border: 1px solid #e2e8f0; color: #64748b; font-family: inherit; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 4px 10px; border-radius: 6px; cursor: pointer;">Sign Out</button>
@@ -23,6 +22,7 @@
 {% endblock %}
 
 {% block nav-global %}{% endblock %}
+{% block breadcrumbs %}{% endblock %}
 
 {% block extrastyle %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -117,18 +117,7 @@
     transform: translateY(-1px) !important;
   }
   .breadcrumbs {
-    background: #f1f5f9 !important;
-    color: #64748b !important;
-    font-size: 12px !important;
-    font-weight: 600 !important;
-    padding: 10px 24px !important;
-    border-bottom: 1px solid #e2e8f0 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.04em !important;
-  }
-  .breadcrumbs a {
-    color: #1483c6 !important;
-    font-weight: 700 !important;
+    display: none !important;
   }
   #changelist-filter {
     background: #ffffff !important;

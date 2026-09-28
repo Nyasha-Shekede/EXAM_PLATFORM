@@ -28,20 +28,39 @@ def home(request): return redirect("dashboard" if request.user.is_authenticated 
 @login_required
 def dashboard(request):
     reconcile_exam_pools()
+    now = timezone.now()
     assignments=Assignment.objects.filter(candidate=request.user,active=True).select_related("exam","exam__module")
     rows=[]
     for a in assignments:
         attempts=list(Attempt.objects.filter(candidate=request.user,exam=a.exam).order_by("attempt_number"))
+        for att in attempts:
+            if att.status == Attempt.IN_PROGRESS and now >= att.expires_at:
+                submit_attempt(att, expired=True, actor=request.user)
+                att.status = Attempt.EXPIRED
+
         open_attempt=next((x for x in attempts if x.status==Attempt.IN_PROGRESS and x.is_open),None)
-        is_avail=a.exam.is_available()
-        # Complete stealth: If exam is not currently open/available and student has no active in-progress attempt, conceal it completely!
-        if not is_avail and not open_attempt:
+        is_expired = bool(a.exam.available_until and now > a.exam.available_until)
+        is_upcoming = bool(a.exam.available_from and now < a.exam.available_from)
+
+        # Complete stealth: If exam has not opened yet and candidate has no active attempt, conceal it
+        if is_upcoming and not open_attempt:
             continue
+
         remaining=max(a.exam.max_attempts-len(attempts),0)
         # If all attempts are finished and no open attempt, hide card (results shown in completed attempts table below)
         if remaining==0 and not open_attempt:
             continue
-        rows.append({"assignment":a,"exam":a.exam,"attempts":attempts,"open":open_attempt,"remaining":remaining,"available":is_avail})
+
+        is_avail = a.exam.is_available(now) and not is_expired
+        rows.append({
+            "assignment": a,
+            "exam": a.exam,
+            "attempts": attempts,
+            "open": open_attempt,
+            "remaining": remaining,
+            "available": is_avail,
+            "is_expired": is_expired,
+        })
     recent=Attempt.objects.filter(candidate=request.user).exclude(status=Attempt.IN_PROGRESS).select_related("exam").order_by("-submitted_at")[:10]
     staff_summary=None
     if request.user.is_staff:
@@ -58,6 +77,7 @@ def dashboard(request):
             "pass_rate": pass_rate,
             "all_recent": completed_qs.select_related("exam","candidate").order_by("-submitted_at")[:8],
             "all_exams": Exam.objects.select_related("module").order_by("-created_at")[:12],
+            "now": now,
         }
     return render(request,"exams/dashboard.html",{"rows":rows,"recent":recent,"staff_summary":staff_summary})
 @login_required
@@ -65,6 +85,9 @@ def begin(request,exam_id):
     if request.method != "POST":
         return redirect("dashboard")
     a=get_object_or_404(Assignment.objects.select_related("exam"),candidate=request.user,exam_id=exam_id,active=True)
+    if a.exam.available_until and timezone.now() > a.exam.available_until:
+        messages.error(request, "This examination has expired and is no longer accepting submissions.")
+        return redirect("dashboard")
     try: attempt=start_attempt(a.exam,request.user,client_ip(request))
     except ValidationError as e: messages.error(request,"; ".join(e.messages)); return redirect("dashboard")
     return redirect("question",attempt_id=attempt.id,position=1)
@@ -329,6 +352,19 @@ def create_exam_view(request):
         form = CreateExamForm()
 
     return render(request, "exams/create_exam.html", {"form": form, "existing_modules": existing_modules})
+
+
+@csrf_exempt
+@user_passes_test(staff_required)
+@require_POST
+def delete_exam(request, exam_id):
+    exam = get_object_or_404(Exam, id=exam_id)
+    title = exam.title
+    Assignment.objects.filter(exam=exam).delete()
+    Attempt.objects.filter(exam=exam).delete()
+    exam.delete()
+    messages.success(request, f"Examination '{title}' was permanently deleted.")
+    return redirect("dashboard")
 
 
 @csrf_exempt

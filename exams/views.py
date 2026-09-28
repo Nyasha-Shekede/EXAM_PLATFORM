@@ -67,7 +67,7 @@ def begin(request,exam_id):
     except ValidationError as e: messages.error(request,"; ".join(e.messages)); return redirect("dashboard")
     return redirect("question",attempt_id=attempt.id,position=1)
 
-def owned_attempt(user, pk, allow_staff=False):
+def owned_attempt(user, pk, allow_staff=True):
     qs = Attempt.objects.select_related("exam", "candidate")
     if allow_staff and user.is_staff:
         return get_object_or_404(qs, pk=pk)

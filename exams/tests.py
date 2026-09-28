@@ -280,3 +280,10 @@ class SimpleImportTests(Base):
         response = self.client.get(reverse("answer", args=[attempt.id, 2]))
         self.assertEqual(response.status_code, 302)
         self.assertIn(f"/attempts/{attempt.id}/questions/2/", response.url)
+
+    def test_staff_can_view_student_attempt_question(self):
+        attempt = start_attempt(self.exam, self.user)
+        # Login as staff (admin)
+        self.client.login(username="admin", password="Strong-pass-475")
+        response = self.client.get(reverse("question", args=[attempt.id, 1]))
+        self.assertEqual(response.status_code, 200)

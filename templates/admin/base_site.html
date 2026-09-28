@@ -38,11 +38,38 @@
     pointer-events: none !important;
     overflow: hidden !important;
   }
+  .submit-row input[name="_addanother"],
+  .submit-row input[name="_continue"],
+  .submit-row input[name="_saveasnew"],
+  .submit-row button[name="_addanother"],
+  .submit-row button[name="_continue"],
+  .submit-row button[name="_saveasnew"],
+  input[name="_addanother"],
+  input[name="_continue"],
+  input[name="_saveasnew"],
+  button[name="_addanother"],
+  button[name="_continue"],
+  button[name="_saveasnew"] {
+    display: none !important;
+    visibility: hidden !important;
+    width: 0 !important;
+    height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    pointer-events: none !important;
+  }
 </style>
 <script>
   (function() {
     function purge() {
       document.querySelectorAll('.breadcrumbs, [class*="breadcrumb"]').forEach(function(el) {
+        el.remove();
+      });
+      document.querySelectorAll(
+        'input[name="_addanother"], input[name="_continue"], input[name="_saveasnew"], ' +
+        'button[name="_addanother"], button[name="_continue"], button[name="_saveasnew"]'
+      ).forEach(function(el) {
         el.remove();
       });
     }
@@ -51,6 +78,9 @@
     } else {
       purge();
     }
+    window.addEventListener('load', purge);
+    setTimeout(purge, 100);
+    setTimeout(purge, 400);
   })();
 </script>
 {% endblock %}
@@ -150,16 +180,115 @@
   .breadcrumbs {
     display: none !important;
   }
+  .submit-row input[name="_addanother"],
+  .submit-row input[name="_continue"],
+  .submit-row input[name="_saveasnew"] {
+    display: none !important;
+  }
+  .submit-row p.deletelink-box {
+    margin: 0 !important;
+  }
+  .submit-row a.deletelink {
+    background: #ef4444 !important;
+    color: #ffffff !important;
+    border-radius: 8px !important;
+    padding: 9px 18px !important;
+    font-weight: 700 !important;
+    font-family: inherit !important;
+    font-size: 13px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    display: inline-block !important;
+    height: auto !important;
+    line-height: normal !important;
+    text-decoration: none !important;
+    transition: all 0.15s ease !important;
+  }
+  .submit-row a.deletelink:hover {
+    background: #dc2626 !important;
+    transform: translateY(-1px) !important;
+  }
   #changelist-filter {
     background: #ffffff !important;
     border-left: 1px solid #e2e8f0 !important;
+    min-width: 200px !important;
   }
   #changelist-filter h2 {
     background: #f8fafc !important;
     color: #0f172a !important;
     text-transform: uppercase !important;
     font-size: 12px !important;
+    letter-spacing: 0.06em !important;
+    font-weight: 800 !important;
+    padding: 12px 16px !important;
+    margin: 0 !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+  }
+  #changelist-filter h3 {
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    color: #64748b !important;
+    text-transform: uppercase !important;
     letter-spacing: 0.05em !important;
+    padding: 14px 16px 6px 16px !important;
+    margin: 0 !important;
+  }
+  #changelist-filter ul {
+    padding: 0 16px 12px 16px !important;
+    margin: 0 !important;
+  }
+  #changelist-filter li {
+    font-size: 13px !important;
+    line-height: 1.8 !important;
+  }
+  #changelist-filter li.selected a {
+    color: #1483c6 !important;
+    font-weight: 700 !important;
+  }
+  #changelist-filter a.show-facets,
+  #changelist-filter a.hide-facets,
+  #changelist-filter .small.quiet,
+  #changelist-filter p.small {
+    display: none !important;
+  }
+  ul.radiolist, .radiolist {
+    list-style: none !important;
+    padding: 0 !important;
+    margin: 8px 0 !important;
+    display: flex !important;
+    gap: 12px !important;
+    flex-wrap: wrap !important;
+  }
+  ul.radiolist li, .radiolist li {
+    display: inline-flex !important;
+    align-items: center !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  ul.radiolist li label, .radiolist li label {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    background: #f8fafc !important;
+    border: 1.5px solid #cbd5e1 !important;
+    padding: 9px 16px !important;
+    border-radius: 8px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    color: #0f172a !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+  }
+  ul.radiolist li label:hover, .radiolist li label:hover {
+    border-color: #1483c6 !important;
+    background: #f0f9ff !important;
+  }
+  ul.radiolist li label input[type="radio"], .radiolist li label input[type="radio"] {
+    accent-color: #1483c6 !important;
+    margin: 0 !important;
+    width: 16px !important;
+    height: 16px !important;
+    cursor: pointer !important;
   }
   .timezonewarning {
     display: none !important;

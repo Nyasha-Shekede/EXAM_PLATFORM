@@ -1,11 +1,167 @@
+from django import forms
 from django.contrib import admin
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import User, Group
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 from django.core.exceptions import ValidationError
+from django.shortcuts import redirect
+from django.utils.html import format_html
 from .models import Module, Category, Question, Option, Exam, Assignment, Attempt, AuditEvent
 from .services import validate_question
 
-# Unregister Group to keep Authentication simple
+# Unregister default User and Group to eliminate bloated permissions and complex forms
 admin.site.unregister(Group)
+admin.site.unregister(User)
+
+class UserRoleFilter(admin.SimpleListFilter):
+    title = "Role"
+    parameter_name = "role"
+
+    def lookups(self, request, model_admin):
+        return [
+            ("instructor", "Instructor"),
+            ("student", "Student"),
+        ]
+
+    def queryset(self, request, queryset):
+        if self.value() == "instructor":
+            return queryset.filter(is_staff=True)
+        if self.value() == "student":
+            return queryset.filter(is_staff=False)
+        return queryset
+
+class UserStatusFilter(admin.SimpleListFilter):
+    title = "Status"
+    parameter_name = "status"
+
+    def lookups(self, request, model_admin):
+        return [
+            ("active", "Active"),
+            ("inactive", "Inactive"),
+        ]
+
+    def queryset(self, request, queryset):
+        if self.value() == "active":
+            return queryset.filter(is_active=True)
+        if self.value() == "inactive":
+            return queryset.filter(is_active=False)
+        return queryset
+
+class CustomUserCreationForm(UserCreationForm):
+    first_name = forms.CharField(label="First Name", max_length=150, required=False)
+    last_name = forms.CharField(label="Last Name", max_length=150, required=False)
+    email = forms.EmailField(label="Email Address", required=False)
+    role = forms.ChoiceField(
+        label="Account Role",
+        choices=[("student", "Student (Candidate)"), ("instructor", "Instructor (Staff)")],
+        initial="student",
+        widget=forms.RadioSelect,
+        help_text="Select whether this user is an examination student or an academy instructor."
+    )
+
+    class Meta(UserCreationForm.Meta):
+        model = User
+        fields = ("username", "first_name", "last_name", "email", "role")
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.first_name = self.cleaned_data.get("first_name", "")
+        user.last_name = self.cleaned_data.get("last_name", "")
+        user.email = self.cleaned_data.get("email", "")
+        role = self.cleaned_data.get("role", "student")
+        if role == "instructor":
+            user.is_staff = True
+        else:
+            user.is_staff = False
+            user.is_superuser = False
+        if commit:
+            user.save()
+        return user
+
+class CleanPasswordWidget(forms.Widget):
+    def render(self, name, value, attrs=None, renderer=None):
+        return format_html(
+            '<div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 6px;">'
+            '<span style="font-family: monospace; font-size: 16px; letter-spacing: 0.25em; color: #475569; background: #f1f5f9; padding: 6px 12px; border-radius: 6px; border: 1px solid #cbd5e1;">••••••••••••</span>'
+            '<a href="../password/" class="button" style="background: #1483c6; color: #ffffff; padding: 7px 14px; border-radius: 6px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; text-decoration: none; display: inline-block;">Reset Password</a>'
+            '</div>'
+            '<span class="help" style="color: #64748b; font-size: 12px; display: block;">Raw passwords are encrypted for security and cannot be viewed.</span>'
+        )
+
+class CustomUserChangeForm(UserChangeForm):
+    password = forms.CharField(label="Password", widget=CleanPasswordWidget, required=False)
+    role = forms.ChoiceField(
+        label="Account Role",
+        choices=[("student", "Student (Candidate)"), ("instructor", "Instructor (Staff)")],
+        widget=forms.RadioSelect,
+        help_text="Select whether this user is an examination student or an academy instructor."
+    )
+
+    class Meta(UserChangeForm.Meta):
+        model = User
+        fields = ("username", "password", "first_name", "last_name", "email", "role", "is_active")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk:
+            self.fields["role"].initial = "instructor" if (self.instance.is_staff or self.instance.is_superuser) else "student"
+
+    def clean_password(self):
+        return self.initial.get("password")
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        role = self.cleaned_data.get("role", "student")
+        if role == "instructor":
+            user.is_staff = True
+        else:
+            user.is_staff = False
+            user.is_superuser = False
+        if commit:
+            user.save()
+        return user
+
+@admin.register(User)
+class CustomUserAdmin(BaseUserAdmin):
+    form = CustomUserChangeForm
+    add_form = CustomUserCreationForm
+
+    list_display = ("username", "full_name_display", "email", "role_badge", "active_badge", "date_joined")
+    list_filter = (UserRoleFilter, UserStatusFilter)
+    search_fields = ("username", "first_name", "last_name", "email")
+    ordering = ("-date_joined",)
+    filter_horizontal = ()
+
+    if hasattr(admin, "ShowFacets"):
+        show_facets = admin.ShowFacets.NEVER
+
+    fieldsets = (
+        ("Account Credentials", {"fields": ("username", "password")}),
+        ("Personal Information", {"fields": ("first_name", "last_name", "email")}),
+        ("Role & Access", {"fields": ("role", "is_active")}),
+    )
+
+    add_fieldsets = (
+        ("Create User", {
+            "classes": ("wide",),
+            "fields": ("username", "first_name", "last_name", "email", "role", "password1", "password2"),
+        }),
+    )
+
+    @admin.display(description="Full Name")
+    def full_name_display(self, obj):
+        name = obj.get_full_name()
+        return name if name else "—"
+
+    @admin.display(description="Role")
+    def role_badge(self, obj):
+        if obj.is_staff or obj.is_superuser:
+            return format_html('<span style="font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #1483c6; background: #e8f4fc; padding: 3px 8px; border-radius: 6px; border: 1px solid #bfdbfe;">Instructor</span>')
+        return format_html('<span style="font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #475569; background: #f1f5f9; padding: 3px 8px; border-radius: 6px; border: 1px solid #cbd5e1;">Student</span>')
+
+    @admin.display(description="Active", boolean=True)
+    def active_badge(self, obj):
+        return obj.is_active
 
 class OptionInline(admin.TabularInline):
     model = Option
@@ -65,6 +221,18 @@ class ExamAdmin(admin.ModelAdmin):
         ("Shuffling & Display", {"fields": ("shuffle_questions", "shuffle_options", "show_answers_after")}),
         ("Schedule (Optional)", {"fields": ("available_from", "available_until")}),
     )
+
+    def response_change(self, request, obj):
+        super().response_change(request, obj)
+        return redirect("dashboard")
+
+    def response_add(self, request, obj, post_url_continue=None):
+        super().response_add(request, obj, post_url_continue)
+        return redirect("dashboard")
+
+    def response_delete(self, request, obj_display, obj_id):
+        super().response_delete(request, obj_display, obj_id)
+        return redirect("dashboard")
 
 @admin.register(Attempt)
 class AttemptAdmin(admin.ModelAdmin):

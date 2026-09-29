@@ -1,0 +1,94 @@
+{
+  "csv_files": 6,
+  "questions": 600,
+  "pictures": 30,
+  "image_backed_questions": 60,
+  "modules": {
+    "01_AIR_LAW.csv": {
+      "rows": 100,
+      "one_correct": 50,
+      "two_correct": 24,
+      "three_correct": 26,
+      "diagram_questions": 10,
+      "categories": {
+        "Authority and permissions": 20,
+        "Airspace coordination": 22,
+        "People and property": 20,
+        "Records and accountability": 20,
+        "Decision and interpretation": 18
+      }
+    },
+    "02_METEOROLOGY.csv": {
+      "rows": 100,
+      "one_correct": 50,
+      "two_correct": 22,
+      "three_correct": 28,
+      "diagram_questions": 10,
+      "categories": {
+        "Wind assessment": 20,
+        "Cloud and visibility": 20,
+        "Atmosphere and density": 18,
+        "Precipitation and storms": 20,
+        "Weather information": 22
+      }
+    },
+    "03_FLIGHT_PRINCIPLES.csv": {
+      "rows": 100,
+      "one_correct": 50,
+      "two_correct": 22,
+      "three_correct": 28,
+      "diagram_questions": 10,
+      "categories": {
+        "Lift and thrust": 20,
+        "Weight and balance": 20,
+        "Control and stability": 20,
+        "Energy and performance": 20,
+        "Aerodynamic effects": 20
+      }
+    },
+    "04_NAVIGATION_BVLOS.csv": {
+      "rows": 100,
+      "one_correct": 50,
+      "two_correct": 22,
+      "three_correct": 28,
+      "diagram_questions": 10,
+      "categories": {
+        "Map and coordinates": 22,
+        "Heading and track": 20,
+        "GNSS and integrity": 20,
+        "Command and communication": 18,
+        "BVLOS contingency": 20
+      }
+    },
+    "05_UAS_SYSTEMS.csv": {
+      "rows": 100,
+      "one_correct": 50,
+      "two_correct": 22,
+      "three_correct": 28,
+      "diagram_questions": 10,
+      "categories": {
+        "Airframe and propulsion": 20,
+        "Power and batteries": 20,
+        "Sensors and navigation": 20,
+        "Control and software": 20,
+        "Communication and payload": 20
+      }
+    },
+    "06_HUMAN_FACTORS_SAFETY.csv": {
+      "rows": 100,
+      "one_correct": 50,
+      "two_correct": 22,
+      "three_correct": 28,
+      "diagram_questions": 10,
+      "categories": {
+        "Human performance": 20,
+        "Crew communication": 20,
+        "Risk assessment": 20,
+        "Emergency response": 20,
+        "Maintenance and learning": 20
+      }
+    }
+  },
+  "compatibility_test": "600 imported successfully by EXAM_PLATFORM and a 20-item sample attempt scored 100.00%; temporary test database not included",
+  "limitations": "Content/legal/psychometric review remains required"
+}

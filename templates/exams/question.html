@@ -48,7 +48,9 @@
     {% if q.image_name %}
     <figure>
       <img src="{% url 'attempt_image' attempt.id q.position %}" alt="{{ q.image_alt_text }}">
+      {% if q.image_alt_text %}
       <figcaption>{{ q.image_alt_text }}</figcaption>
+      {% endif %}
     </figure>
     {% endif %}
 

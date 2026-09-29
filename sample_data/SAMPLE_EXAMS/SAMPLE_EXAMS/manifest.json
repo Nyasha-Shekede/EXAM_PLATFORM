@@ -1,0 +1,134 @@
+{
+  "01_AIR_LAW.csv": {
+    "module": "Air Law",
+    "count": 100,
+    "single": 50,
+    "two_correct": 24,
+    "three_correct": 26,
+    "image_questions": 10,
+    "images": [
+      "air_approval_gate.png",
+      "air_notice_window.png",
+      "air_corridor_points.png",
+      "air_two_permissions.png",
+      "air_incident_sequence.png"
+    ],
+    "categories": [
+      "Airspace coordination",
+      "Authority and permissions",
+      "Decision and interpretation",
+      "People and property",
+      "Records and accountability"
+    ]
+  },
+  "02_METEOROLOGY.csv": {
+    "module": "Meteorology",
+    "count": 100,
+    "single": 50,
+    "two_correct": 22,
+    "three_correct": 28,
+    "image_questions": 10,
+    "images": [
+      "met_gust_readings.png",
+      "met_dew_spread.png",
+      "met_density_sites.png",
+      "met_weather_update.png",
+      "met_crosswind.png"
+    ],
+    "categories": [
+      "Atmosphere and density",
+      "Cloud and visibility",
+      "Precipitation and storms",
+      "Weather information",
+      "Wind assessment"
+    ]
+  },
+  "03_FLIGHT_PRINCIPLES.csv": {
+    "module": "Principles of Flight",
+    "count": 100,
+    "single": 50,
+    "two_correct": 22,
+    "three_correct": 28,
+    "image_questions": 10,
+    "images": [
+      "flight_hover_forces.png",
+      "flight_cg_arms.png",
+      "flight_tilted_thrust.png",
+      "flight_battery_curve.png",
+      "flight_bank_load.png"
+    ],
+    "categories": [
+      "Aerodynamic effects",
+      "Control and stability",
+      "Energy and performance",
+      "Lift and thrust",
+      "Weight and balance"
+    ]
+  },
+  "04_NAVIGATION_BVLOS.csv": {
+    "module": "Navigation and BVLOS",
+    "count": 100,
+    "single": 50,
+    "two_correct": 22,
+    "three_correct": 28,
+    "image_questions": 10,
+    "images": [
+      "nav_waypoint_corridor.png",
+      "nav_heading_track.png",
+      "nav_accuracy_buffer.png",
+      "nav_link_margin.png",
+      "nav_energy_return.png"
+    ],
+    "categories": [
+      "BVLOS contingency",
+      "Command and communication",
+      "GNSS and integrity",
+      "Heading and track",
+      "Map and coordinates"
+    ]
+  },
+  "05_UAS_SYSTEMS.csv": {
+    "module": "UAS Systems",
+    "count": 100,
+    "single": 50,
+    "two_correct": 22,
+    "three_correct": 28,
+    "image_questions": 10,
+    "images": [
+      "systems_propellers.png",
+      "systems_cell_voltage.png",
+      "systems_sensor_roles.png",
+      "systems_software_pair.png",
+      "systems_two_links.png"
+    ],
+    "categories": [
+      "Airframe and propulsion",
+      "Communication and payload",
+      "Control and software",
+      "Power and batteries",
+      "Sensors and navigation"
+    ]
+  },
+  "06_HUMAN_FACTORS_SAFETY.csv": {
+    "module": "Human Factors and Safety",
+    "count": 100,
+    "single": 50,
+    "two_correct": 22,
+    "three_correct": 28,
+    "image_questions": 10,
+    "images": [
+      "human_risk_grid.png",
+      "human_handover.png",
+      "human_work_timeline.png",
+      "human_event_sequence.png",
+      "human_preflight_status.png"
+    ],
+    "categories": [
+      "Crew communication",
+      "Emergency response",
+      "Human performance",
+      "Maintenance and learning",
+      "Risk assessment"
+    ]
+  }
+}

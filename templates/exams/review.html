@@ -13,6 +13,14 @@
 {% for q in questions %}
 <article class="review card">
   <h2>{{ q.position }}. {{ q.stem }}</h2>
+  {% if q.image_name %}
+  <figure>
+    <img src="{% url 'attempt_image' attempt.id q.position %}" alt="{{ q.image_alt_text }}">
+    {% if q.image_alt_text %}
+    <figcaption>{{ q.image_alt_text }}</figcaption>
+    {% endif %}
+  </figure>
+  {% endif %}
   {% for o in q.snapshot_options.all %}
   <div class="reviewopt {% if o.is_correct %}correct{% elif o.display_key in q.response.selected_keys %}wrong{% endif %}">
     <b>{{ o.display_key }}</b> {{ o.text }}

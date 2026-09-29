@@ -125,6 +125,7 @@ class CustomUserChangeForm(UserChangeForm):
 class CustomUserAdmin(BaseUserAdmin):
     form = CustomUserChangeForm
     add_form = CustomUserCreationForm
+    actions = ["delete_selected"]
 
     list_display = ("username", "full_name_display", "email", "role_badge", "active_badge", "date_joined")
     list_filter = (UserRoleFilter, UserStatusFilter)

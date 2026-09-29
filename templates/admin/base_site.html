@@ -59,6 +59,62 @@
     border: none !important;
     pointer-events: none !important;
   }
+  /* Hide the entire Action: dropdown + GO bar */
+  .actions {
+    display: none !important;
+  }
+  /* Nuke the nav sidebar — main interface manages everything */
+  #nav-sidebar,
+  .toggle-nav-sidebar,
+  #toggle-nav-sidebar,
+  button.toggle-nav-sidebar {
+    display: none !important;
+    width: 0 !important;
+    min-width: 0 !important;
+  }
+  /* Ensure content takes full width without sidebar gap */
+  #main > .main,
+  #main,
+  .main > #content,
+  #content-start,
+  #content {
+    margin-left: 0 !important;
+  }
+  /* Smart delete button that appears on tick */
+  #adk-delete-btn {
+    display: none;
+    background: #ef4444;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 18px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    margin-left: 12px;
+    vertical-align: middle;
+  }
+  #adk-delete-btn:hover {
+    background: #dc2626;
+    transform: translateY(-1px);
+  }
+  #adk-selection-bar {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    background: #fff7ed;
+    border: 1.5px solid #fed7aa;
+    border-radius: 8px;
+    margin: 8px 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: #92400e;
+  }
 </style>
 <script>
   (function() {
@@ -73,10 +129,67 @@
         el.remove();
       });
     }
+
+    function initDeleteBar() {
+      // Only on changelist pages that have the action form
+      var actionForm = document.querySelector('#changelist-form, form[method="post"]');
+      var actionSelect = document.querySelector('select[name="action"]');
+      if (!actionSelect) return;
+
+      // Inject the selection bar after the search bar / above the result list
+      var resultList = document.getElementById('result_list') || document.querySelector('.results');
+      if (!resultList) return;
+
+      var bar = document.createElement('div');
+      bar.id = 'adk-selection-bar';
+      bar.innerHTML =
+        '<span id="adk-sel-count"></span> selected &nbsp;' +
+        '<button id="adk-delete-btn" type="button">Delete Selected</button>' +
+        '<button id="adk-deselect-btn" type="button" style="background:none;border:1px solid #fed7aa;color:#92400e;padding:6px 12px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Clear selection</button>';
+      resultList.parentNode.insertBefore(bar, resultList);
+
+      function countChecked() {
+        return document.querySelectorAll('#result_list tbody input[type="checkbox"]:checked, .results tbody input[type="checkbox"]:checked').length;
+      }
+
+      function updateBar() {
+        var n = countChecked();
+        if (n > 0) {
+          bar.style.display = 'flex';
+          document.getElementById('adk-sel-count').textContent = n + ' user' + (n === 1 ? '' : 's');
+          document.getElementById('adk-delete-btn').textContent = 'Delete ' + n + ' Selected';
+        } else {
+          bar.style.display = 'none';
+        }
+      }
+
+      // Listen to all checkboxes including the header select-all
+      document.addEventListener('change', function(e) {
+        if (e.target && e.target.type === 'checkbox') {
+          updateBar();
+        }
+      });
+
+      document.getElementById('adk-delete-btn').addEventListener('click', function() {
+        var n = countChecked();
+        if (!n) return;
+        if (!confirm('Permanently delete ' + n + ' user account' + (n === 1 ? '' : 's') + '? This cannot be undone.')) return;
+        actionSelect.value = 'delete_selected';
+        var form = actionSelect.closest('form');
+        if (form) form.submit();
+      });
+
+      document.getElementById('adk-deselect-btn').addEventListener('click', function() {
+        document.querySelectorAll('input[type="checkbox"]').forEach(function(cb) { cb.checked = false; });
+        updateBar();
+      });
+    }
+
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', purge);
+      document.addEventListener('DOMContentLoaded', function() { purge(); initDeleteBar(); });
     } else {
       purge();
+      initDeleteBar();
     }
     window.addEventListener('load', purge);
     setTimeout(purge, 100);

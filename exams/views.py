@@ -382,9 +382,14 @@ def quick_add_candidate(request):
     username = data.get("username", "").strip()
     name = data.get("name", "").strip()
     email = data.get("email", "").strip()
+    password = data.get("password", "").strip()
 
     if not username:
         return JsonResponse({"ok": False, "error": "Candidate ID / Username is required."}, status=400)
+    if not password:
+        return JsonResponse({"ok": False, "error": "Password is required."}, status=400)
+    if len(password) < 6:
+        return JsonResponse({"ok": False, "error": "Password must be at least 6 characters."}, status=400)
     if User.objects.filter(username__iexact=username).exists():
         return JsonResponse({"ok": False, "error": f"Candidate with ID '{username}' already exists."}, status=400)
 
@@ -392,11 +397,10 @@ def quick_add_candidate(request):
     first_name = name_parts[0] if name_parts else ""
     last_name = name_parts[1] if len(name_parts) > 1 else ""
 
-    default_pwd = f"ADK-{secrets.token_hex(3).upper()}!"
     user = User.objects.create_user(
         username=username,
         email=email,
-        password=default_pwd,
+        password=password,
         first_name=first_name,
         last_name=last_name,
         is_staff=False,
@@ -406,6 +410,6 @@ def quick_add_candidate(request):
         "id": user.pk,
         "label": f"{user.get_full_name() or user.username} ({user.username})",
         "username": user.username,
-        "default_password": default_pwd,
+        "default_password": password,
     })
 

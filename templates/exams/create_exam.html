@@ -129,7 +129,7 @@
     <!-- Quick Add Candidate Inline Drawer -->
     <div id="add-candidate-panel" style="display: none; background: var(--adk-blue-subtle); border: 1.5px dashed var(--adk-blue); border-radius: 10px; padding: 1.2rem; margin-bottom: 1.2rem;">
       <div style="font-weight: 800; font-size: 0.9rem; color: var(--ink); margin-bottom: 0.8rem;">Enroll New Candidate Student</div>
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) auto; gap: 0.8rem; align-items: flex-end;">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.8rem; align-items: flex-end;">
         <div>
           <label style="font-size: 0.8rem; font-weight: 700; display: block; margin-bottom: 0.2rem;">Full Name</label>
           <input type="text" id="new-candidate-name" placeholder="e.g. Tendai Moyo" style="padding: 0.6rem 0.8rem; font-size: 0.88rem; width: 100%; border: 1.5px solid var(--line-strong); border-radius: 6px; box-sizing: border-box;">
@@ -143,10 +143,26 @@
           <input type="email" id="new-candidate-email" placeholder="e.g. tendai@example.com" style="padding: 0.6rem 0.8rem; font-size: 0.88rem; width: 100%; border: 1.5px solid var(--line-strong); border-radius: 6px; box-sizing: border-box;">
         </div>
         <div>
-          <button type="button" id="save-candidate-btn" class="primary" style="padding: 0.65rem 1.2rem; font-size: 0.82rem; height: 38px;">Add & Select</button>
+          <label style="font-size: 0.8rem; font-weight: 700; display: block; margin-bottom: 0.2rem;">Password *</label>
+          <input type="text" id="new-candidate-password" placeholder="Set a login password" style="padding: 0.6rem 0.8rem; font-size: 0.88rem; width: 100%; border: 1.5px solid var(--line-strong); border-radius: 6px; box-sizing: border-box; font-family: monospace;">
+          <small style="color: var(--muted); font-size: 0.75rem;">This is what the student uses to sign in.</small>
+        </div>
+        <div style="align-self: flex-end;">
+          <button type="button" id="save-candidate-btn" class="primary" style="padding: 0.65rem 1.2rem; font-size: 0.82rem; width: 100%;">Add & Select</button>
         </div>
       </div>
       <div id="candidate-status-msg" style="font-size: 0.82rem; margin-top: 0.6rem; font-weight: 600; display: none;"></div>
+      <!-- Credential card shown after student is created -->
+      <div id="credential-card" style="display: none; margin-top: 1rem; background: #ffffff; border: 2px solid #1483c6; border-radius: 8px; padding: 1rem 1.2rem;">
+        <div style="font-weight: 800; color: var(--ink); margin-bottom: 0.5rem; font-size: 0.88rem;">✓ Student Created — Record These Credentials</div>
+        <div style="display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 0.8rem; font-size: 0.88rem; align-items: center;">
+          <span style="font-weight: 700; color: var(--muted);">Username:</span>
+          <code id="cred-username" style="font-size: 0.9rem; background: #f1f5f9; padding: 2px 8px; border-radius: 4px;"></code>
+          <span style="font-weight: 700; color: var(--muted);">Password:</span>
+          <code id="cred-password" style="font-size: 0.9rem; background: #f1f5f9; padding: 2px 8px; border-radius: 4px;"></code>
+        </div>
+        <small style="color: var(--muted); display: block; margin-top: 0.6rem;">Share these with the student. You can change the password later via Edit Users in the admin.</small>
+      </div>
     </div>
 
     <div id="candidate-list" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.6rem; max-height: 240px; overflow-y: auto; padding: 0.75rem; border: 1.5px solid var(--line-strong); border-radius: 8px; background: var(--white);">
@@ -211,14 +227,22 @@ document.addEventListener("DOMContentLoaded", function() {
       const name = document.getElementById("new-candidate-name").value.trim();
       const username = document.getElementById("new-candidate-username").value.trim();
       const email = document.getElementById("new-candidate-email").value.trim();
+      const password = document.getElementById("new-candidate-password").value.trim();
+      const credCard = document.getElementById("credential-card");
 
       statusMsg.style.display = "block";
       statusMsg.style.color = "var(--ink)";
       statusMsg.textContent = "Creating student account...";
+      credCard.style.display = "none";
 
       if (!username) {
         statusMsg.style.color = "var(--fail)";
         statusMsg.textContent = "Candidate ID / Username is required.";
+        return;
+      }
+      if (!password) {
+        statusMsg.style.color = "var(--fail)";
+        statusMsg.textContent = "Password is required. The student needs this to sign in.";
         return;
       }
 
@@ -230,12 +254,16 @@ document.addEventListener("DOMContentLoaded", function() {
             "Content-Type": "application/json",
             "X-CSRFToken": csrfToken,
           },
-          body: JSON.stringify({ name, username, email }),
+          body: JSON.stringify({ name, username, email, password }),
         });
         const data = await res.json();
         if (data.ok) {
-          statusMsg.style.color = "var(--pass)";
-          statusMsg.textContent = `Student created: ${data.username} (Password: ${data.default_password})`;
+          statusMsg.style.display = "none";
+
+          // Show the credential card prominently
+          document.getElementById("cred-username").textContent = data.username;
+          document.getElementById("cred-password").textContent = data.default_password;
+          credCard.style.display = "block";
 
           const emptyMsg = document.getElementById("no-candidates-msg");
           if (emptyMsg) emptyMsg.remove();
@@ -251,6 +279,7 @@ document.addEventListener("DOMContentLoaded", function() {
           document.getElementById("new-candidate-name").value = "";
           document.getElementById("new-candidate-username").value = "";
           document.getElementById("new-candidate-email").value = "";
+          document.getElementById("new-candidate-password").value = "";
         } else {
           statusMsg.style.color = "var(--fail)";
           statusMsg.textContent = data.error || "Failed to create candidate.";

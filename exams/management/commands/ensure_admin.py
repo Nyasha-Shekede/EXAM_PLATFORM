@@ -33,6 +33,8 @@ class Command(BaseCommand):
         user.is_active = True
         if password:
             user.set_password(password)
+        user.save()  # <-- persist the account and password to DB
+
         # Completely nuke legacy demo seed records from the database
         from exams.models import Module, Exam
         Exam.objects.filter(code="DEMO-EXAM").delete()

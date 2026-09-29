@@ -14,7 +14,7 @@
 {% block welcome-msg %}{% endblock %}
 
 {% block userlinks %}
-  <span style="font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #1483c6; background: #e8f4fc; padding: 4px 10px; border-radius: 6px; border: 1px solid #bfdbfe; margin-right: 12px;">INSTRUCTOR</span>
+  <span style="font-size: 13px; font-style: italic; font-weight: 500; color: #64748b; margin-right: 14px; text-transform: none;">Instructor</span>
   <form id="logout-form" method="post" action="{% url 'admin:logout' %}" style="display: inline;">
     {% csrf_token %}
     <button type="submit" style="background: none; border: 1px solid #e2e8f0; color: #64748b; font-family: inherit; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 4px 10px; border-radius: 6px; cursor: pointer;">Sign Out</button>
@@ -88,7 +88,7 @@
 {% block extrastyle %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600&display=swap" rel="stylesheet">
 <style>
   :root {
     --primary: #1483c6 !important;

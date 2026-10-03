@@ -280,7 +280,7 @@ def create_exam_view(request):
         form = CreateExamForm(request.POST, request.FILES)
         if form.is_valid():
             title = form.cleaned_data["title"]
-            module_name = form.cleaned_data["module_name"].strip()
+            module_name = (form.cleaned_data.get("module_name") or title).strip()
             duration = form.cleaned_data["duration_minutes"]
             pass_mark = form.cleaned_data["pass_mark"]
             max_attempts = form.cleaned_data["max_attempts"]

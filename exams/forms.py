@@ -65,14 +65,12 @@ class CreateExamForm(forms.Form):
         widget=forms.TextInput(attrs={"placeholder": "e.g. Air Law & ATC Procedures Assessment"}),
     )
     module_name = forms.CharField(
-        label="Subject / Module",
+        required=False,
         max_length=120,
-        initial="Air Law",
-        widget=forms.TextInput(attrs={"list": "module-options", "placeholder": "e.g. Air Law, Meteorology, Multirotor Systems"}),
-        help_text="Select or enter the specific subject module for this exam. All uploaded questions belong to this module.",
+        widget=forms.HiddenInput(),
     )
     duration_minutes = forms.IntegerField(
-        label="Time Limit (Minutes)",
+        label="Duration (Minutes)",
         initial=30,
         min_value=1,
         max_value=480,
@@ -84,17 +82,16 @@ class CreateExamForm(forms.Form):
         max_value=100,
     )
     max_attempts = forms.IntegerField(
-        label="Allowed Attempts Per Student",
+        label="Allowed Attempts",
         initial=1,
         min_value=1,
         max_value=10,
     )
     question_count = forms.IntegerField(
-        label="Questions Per Exam Attempt",
+        label="Questions Per Attempt",
         required=False,
         min_value=1,
-        help_text="Number of questions randomly selected from the uploaded pool for each student attempt (e.g. 25). Leave blank to use all.",
-        widget=forms.NumberInput(attrs={"placeholder": "e.g. 25 (leave blank to test on all)"}),
+        widget=forms.NumberInput(attrs={"placeholder": "All (or e.g. 25)"}),
     )
     shuffle_questions = forms.BooleanField(
         label="Randomize question order for each candidate attempt",
@@ -112,16 +109,14 @@ class CreateExamForm(forms.Form):
         required=False,
     )
     available_from = forms.DateTimeField(
-        label="Start Time / Available From (Optional)",
+        label="Opens At",
         required=False,
-        widget=forms.DateTimeInput(attrs={"type": "datetime-local"}),
-        help_text="Stealth Mode: Student cannot see this exam on their dashboard until this date & time.",
+        widget=forms.DateTimeInput(attrs={"type": "datetime-local", "id": "id_available_from"}),
     )
     available_until = forms.DateTimeField(
-        label="End Time / Expiration (Optional)",
+        label="Closes At",
         required=False,
-        widget=forms.DateTimeInput(attrs={"type": "datetime-local"}),
-        help_text="Students cannot start or access this exam after this date & time.",
+        widget=forms.DateTimeInput(attrs={"type": "datetime-local", "id": "id_available_until"}),
     )
     spreadsheet = forms.FileField(
         label="Question Spreadsheet (.xlsx or .csv)",

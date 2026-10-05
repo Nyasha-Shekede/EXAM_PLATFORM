@@ -50,30 +50,50 @@
         </div>
       </div>
 
-      <!-- Unified Schedule Window (Optional) -->
-      <div style="border-top: 1px dashed var(--line); padding-top: 1rem; margin-top: 0.2rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem; flex-wrap: wrap; gap: 0.5rem;">
-          <label style="font-weight: 700; font-size: 0.88rem; color: var(--ink); margin: 0;">Availability Schedule (Optional · CAT / UTC+2)</label>
-          <button type="button" id="clear-schedule-btn" style="background: none; border: none; color: var(--muted); font-size: 0.78rem; font-weight: 600; cursor: pointer; text-decoration: underline; padding: 0;">Clear / Open Immediately</button>
+      <!-- Modern CSS Availability Toggles & Schedule Card -->
+      <div style="border-top: 1px dashed var(--line); padding-top: 1.1rem; margin-top: 0.2rem;">
+        <label style="display: block; font-weight: 700; font-size: 0.88rem; color: var(--ink); margin-bottom: 0.5rem;">Exam Availability Schedule</label>
+        
+        <!-- CSS Segmented Buttons -->
+        <div class="avail-toggle-group">
+          <button type="button" class="avail-toggle-btn active" id="btn-mode-always">
+            <span>Open Immediately</span>
+          </button>
+          <button type="button" class="avail-toggle-btn" id="btn-mode-today">
+            <span>Today's Session</span>
+          </button>
+          <button type="button" class="avail-toggle-btn" id="btn-mode-custom">
+            <span>Custom Schedule</span>
+          </button>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 0.8rem; align-items: center;">
-          <div>
-            <span style="display: block; font-size: 0.78rem; font-weight: 600; color: var(--muted); margin-bottom: 0.25rem;">Opens At</span>
-            {{ form.available_from }}
-          </div>
-          <div style="color: var(--muted); font-weight: 700; font-size: 1rem; padding-top: 1.1rem; text-align: center;">→</div>
-          <div>
-            <span style="display: block; font-size: 0.78rem; font-weight: 600; color: var(--muted); margin-bottom: 0.25rem;">Closes At</span>
-            {{ form.available_until }}
+        <!-- Custom Schedule Card (visible when Custom Schedule is selected) -->
+        <div id="avail-custom-panel" class="avail-schedule-card" style="display: none;">
+          <div class="avail-time-grid">
+            <div class="avail-input-group">
+              <label>Exam Date</label>
+              <input type="date" id="custom-date">
+            </div>
+            <div class="avail-input-group">
+              <label>Opens At</label>
+              <input type="time" id="custom-time-from" value="08:00">
+            </div>
+            <div class="avail-input-group">
+              <label>Closes At</label>
+              <input type="time" id="custom-time-until" value="17:00">
+            </div>
           </div>
         </div>
 
-        <!-- Live Human-Readable Schedule Status Pill -->
-        <div id="schedule-status-pill" style="margin-top: 0.65rem; font-size: 0.8rem; font-weight: 600; padding: 0.4rem 0.75rem; border-radius: 6px; display: inline-flex; align-items: center; gap: 0.45rem; background: #f0f9ff; color: #0284c7; border: 1px solid #bae6fd;">
-          <span id="schedule-status-icon">●</span>
-          <span id="schedule-status-text">Available immediately with no expiration cutoff</span>
+        <!-- Live Human-Readable Status Bar -->
+        <div id="avail-status-bar" class="avail-status-bar open-always">
+          <span id="avail-status-icon">●</span>
+          <span id="avail-status-text">Available immediately · No expiration cutoff</span>
         </div>
+
+        <!-- Hidden form inputs for backend submission -->
+        {{ form.available_from }}
+        {{ form.available_until }}
       </div>
 
       <div style="display: grid; gap: 0.6rem; margin-top: 0.6rem;">
@@ -150,82 +170,112 @@ document.addEventListener("DOMContentLoaded", function() {
     });
   }
 
-  // Interactive Live Schedule Tracker
+  // Availability Segmented Toggle Controller
+  const btnAlways = document.getElementById("btn-mode-always");
+  const btnToday = document.getElementById("btn-mode-today");
+  const btnCustom = document.getElementById("btn-mode-custom");
+  const customPanel = document.getElementById("avail-custom-panel");
+  const customDate = document.getElementById("custom-date");
+  const customTimeFrom = document.getElementById("custom-time-from");
+  const customTimeUntil = document.getElementById("custom-time-until");
+
   const fromInput = document.getElementById("id_available_from");
   const untilInput = document.getElementById("id_available_until");
-  const clearBtn = document.getElementById("clear-schedule-btn");
-  const pill = document.getElementById("schedule-status-pill");
-  const pillText = document.getElementById("schedule-status-text");
+  const statusBar = document.getElementById("avail-status-bar");
+  const statusText = document.getElementById("avail-status-text");
 
-  function formatDT(val) {
-    if (!val) return "";
-    const d = new Date(val);
-    if (isNaN(d.getTime())) return val;
-    return d.toLocaleString("en-GB", {
-      day: "numeric",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit"
-    });
+  function getTodayString() {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
   }
 
-  function updateSchedule() {
-    if (!pill || !pillText) return;
-    const vFrom = fromInput ? fromInput.value : "";
-    const vUntil = untilInput ? untilInput.value : "";
-
-    if (!vFrom && !vUntil) {
-      pill.style.background = "#f0f9ff";
-      pill.style.color = "#0284c7";
-      pill.style.borderColor = "#bae6fd";
-      pillText.textContent = "Available immediately with no expiration cutoff";
-      return;
-    }
-
-    if (vFrom && vUntil) {
-      const dFrom = new Date(vFrom);
-      const dUntil = new Date(vUntil);
-      if (dUntil <= dFrom) {
-        pill.style.background = "#fef2f2";
-        pill.style.color = "#dc2626";
-        pill.style.borderColor = "#fecaca";
-        pillText.textContent = "Schedule Error: Closes At must be after Opens At";
-        return;
-      }
-      pill.style.background = "#ecfdf5";
-      pill.style.color = "#059669";
-      pill.style.borderColor = "#a7f3d0";
-      pillText.textContent = `Scheduled Window: ${formatDT(vFrom)} → ${formatDT(vUntil)} (CAT)`;
-      return;
-    }
-
-    if (vFrom) {
-      pill.style.background = "#ecfdf5";
-      pill.style.color = "#059669";
-      pill.style.borderColor = "#a7f3d0";
-      pillText.textContent = `Scheduled: Opens on ${formatDT(vFrom)} (No closing cutoff)`;
-      return;
-    }
-
-    if (vUntil) {
-      pill.style.background = "#ecfdf5";
-      pill.style.color = "#059669";
-      pill.style.borderColor = "#a7f3d0";
-      pillText.textContent = `Scheduled: Available immediately until ${formatDT(vUntil)}`;
-      return;
-    }
+  function formatDisplayDate(dateStr) {
+    if (!dateStr) return "";
+    const parts = dateStr.split("-");
+    if (parts.length !== 3) return dateStr;
+    const d = new Date(parts[0], parts[1] - 1, parts[2]);
+    return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
   }
 
-  if (fromInput) fromInput.addEventListener("input", updateSchedule);
-  if (untilInput) untilInput.addEventListener("input", updateSchedule);
-  if (clearBtn) {
-    clearBtn.addEventListener("click", function() {
+  function updateCustom() {
+    const dVal = customDate ? customDate.value : "";
+    const tFrom = customTimeFrom ? customTimeFrom.value : "08:00";
+    const tUntil = customTimeUntil ? customTimeUntil.value : "17:00";
+
+    if (!dVal) {
+      statusBar.className = "avail-status-bar error";
+      statusText.textContent = "Please select an exam date";
       if (fromInput) fromInput.value = "";
       if (untilInput) untilInput.value = "";
-      updateSchedule();
-    });
+      return;
+    }
+
+    if (tUntil <= tFrom) {
+      statusBar.className = "avail-status-bar error";
+      statusText.textContent = "Schedule Error: Closes At must be after Opens At";
+      if (fromInput) fromInput.value = "";
+      if (untilInput) untilInput.value = "";
+      return;
+    }
+
+    if (fromInput) fromInput.value = `${dVal}T${tFrom}`;
+    if (untilInput) untilInput.value = `${dVal}T${tUntil}`;
+    statusBar.className = "avail-status-bar scheduled";
+    statusText.textContent = `Scheduled: ${formatDisplayDate(dVal)} · ${tFrom} → ${tUntil} CAT (UTC+2)`;
   }
-  updateSchedule();
+
+  function setMode(mode) {
+    [btnAlways, btnToday, btnCustom].forEach(b => { if (b) b.classList.remove("active"); });
+
+    if (mode === "always") {
+      if (btnAlways) btnAlways.classList.add("active");
+      if (customPanel) customPanel.style.display = "none";
+      if (fromInput) fromInput.value = "";
+      if (untilInput) untilInput.value = "";
+      if (statusBar) statusBar.className = "avail-status-bar open-always";
+      if (statusText) statusText.textContent = "Available immediately · No expiration cutoff";
+    } else if (mode === "today") {
+      if (btnToday) btnToday.classList.add("active");
+      if (customPanel) customPanel.style.display = "none";
+      const today = getTodayString();
+      if (fromInput) fromInput.value = `${today}T08:00`;
+      if (untilInput) untilInput.value = `${today}T18:00`;
+      if (statusBar) statusBar.className = "avail-status-bar scheduled";
+      if (statusText) statusText.textContent = "Active Today · Open from 08:00 to 18:00 CAT (UTC+2)";
+    } else if (mode === "custom") {
+      if (btnCustom) btnCustom.classList.add("active");
+      if (customPanel) customPanel.style.display = "block";
+      if (customDate && !customDate.value) {
+        customDate.value = getTodayString();
+      }
+      updateCustom();
+    }
+  }
+
+  if (btnAlways) btnAlways.addEventListener("click", () => setMode("always"));
+  if (btnToday) btnToday.addEventListener("click", () => setMode("today"));
+  if (btnCustom) btnCustom.addEventListener("click", () => setMode("custom"));
+
+  if (customDate) customDate.addEventListener("change", updateCustom);
+  if (customTimeFrom) customTimeFrom.addEventListener("change", updateCustom);
+  if (customTimeUntil) customTimeUntil.addEventListener("change", updateCustom);
+
+  // Initialize state based on existing input values or default
+  if (fromInput && fromInput.value && untilInput && untilInput.value) {
+    const fVal = fromInput.value;
+    const uVal = untilInput.value;
+    const datePart = fVal.split("T")[0];
+    if (customDate) customDate.value = datePart;
+    if (customTimeFrom && fVal.includes("T")) customTimeFrom.value = fVal.split("T")[1].slice(0, 5);
+    if (customTimeUntil && uVal.includes("T")) customTimeUntil.value = uVal.split("T")[1].slice(0, 5);
+    setMode("custom");
+  } else {
+    if (customDate) customDate.value = getTodayString();
+    setMode("always");
+  }
 });
 </script>
 {% endblock %}

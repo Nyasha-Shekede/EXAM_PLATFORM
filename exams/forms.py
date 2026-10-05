@@ -109,14 +109,12 @@ class CreateExamForm(forms.Form):
         required=False,
     )
     available_from = forms.DateTimeField(
-        label="Opens At",
         required=False,
-        widget=forms.DateTimeInput(attrs={"type": "datetime-local", "id": "id_available_from"}),
+        widget=forms.HiddenInput(attrs={"id": "id_available_from"}),
     )
     available_until = forms.DateTimeField(
-        label="Closes At",
         required=False,
-        widget=forms.DateTimeInput(attrs={"type": "datetime-local", "id": "id_available_until"}),
+        widget=forms.HiddenInput(attrs={"id": "id_available_until"}),
     )
     spreadsheet = forms.FileField(
         label="Question Spreadsheet (.xlsx or .csv)",

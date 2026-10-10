@@ -47,21 +47,44 @@ class UserStatusFilter(admin.SimpleListFilter):
             return queryset.filter(is_active=False)
         return queryset
 
-class CustomUserCreationForm(UserCreationForm):
+class CustomUserCreationForm(forms.ModelForm):
     first_name = forms.CharField(label="First Name", max_length=150, required=False)
     last_name = forms.CharField(label="Last Name", max_length=150, required=False)
-    email = forms.EmailField(label="Email Address", required=False)
+    email = forms.EmailField(label="Email Address", required=True, help_text="Required. An automated invite link will be emailed to set their password.")
     role = forms.ChoiceField(
         label="Account Role",
-        choices=[("student", "Student (Candidate)"), ("instructor", "Instructor (Staff)")],
+        choices=[("student", "Student (Candidate) - Sets own password via email invite"), ("instructor", "Instructor (Staff) - Platform manager")],
         initial="student",
         widget=forms.RadioSelect,
-        help_text="Select whether this user is an examination student or an academy instructor."
+        help_text="Candidates choose their own private password via invite email. Instructors can have an initial password set by administrators."
+    )
+    password1 = forms.CharField(
+        label="Password (Instructors only)",
+        widget=forms.PasswordInput,
+        required=False,
+        help_text="Optional. Only applicable when creating an Instructor account. Leave blank for Students."
+    )
+    password2 = forms.CharField(
+        label="Confirm Password",
+        widget=forms.PasswordInput,
+        required=False,
     )
 
-    class Meta(UserCreationForm.Meta):
+    class Meta:
         model = User
         fields = ("username", "first_name", "last_name", "email", "role")
+
+    def clean(self):
+        cleaned_data = super().clean()
+        role = cleaned_data.get("role", "student")
+        p1 = cleaned_data.get("password1")
+        p2 = cleaned_data.get("password2")
+        if role == "instructor" and p1:
+            if p1 != p2:
+                raise ValidationError("Instructor passwords do not match.")
+            if len(p1) < 8:
+                raise ValidationError("Instructor password must be at least 8 characters long.")
+        return cleaned_data
 
     def save(self, commit=True):
         user = super().save(commit=False)
@@ -69,11 +92,18 @@ class CustomUserCreationForm(UserCreationForm):
         user.last_name = self.cleaned_data.get("last_name", "")
         user.email = self.cleaned_data.get("email", "")
         role = self.cleaned_data.get("role", "student")
+        p1 = self.cleaned_data.get("password1")
         if role == "instructor":
             user.is_staff = True
+            if p1:
+                user.set_password(p1)
+            else:
+                user.set_unusable_password()
         else:
             user.is_staff = False
             user.is_superuser = False
+            # Candidates NEVER have passwords set by instructors
+            user.set_unusable_password()
         if commit:
             user.save()
         return user
@@ -83,9 +113,9 @@ class CleanPasswordWidget(forms.Widget):
         return format_html(
             '<div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 6px;">'
             '<span style="font-family: monospace; font-size: 16px; letter-spacing: 0.25em; color: #475569; background: #f1f5f9; padding: 6px 12px; border-radius: 6px; border: 1px solid #cbd5e1;">••••••••••••</span>'
-            '<a href="../password/" class="button" style="background: #1483c6; color: #ffffff; padding: 7px 14px; border-radius: 6px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; text-decoration: none; display: inline-block;">Reset Password</a>'
+            '<a href="../password/" class="button" style="background: #1483c6; color: #ffffff; padding: 7px 14px; border-radius: 6px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; text-decoration: none; display: inline-block;">Change Password</a>'
             '</div>'
-            '<span class="help" style="color: #64748b; font-size: 12px; display: block;">Raw passwords are encrypted for security and cannot be viewed.</span>'
+            '<span class="help" style="color: #64748b; font-size: 12px; display: block;">Raw passwords are encrypted for security. Candidates set and manage their own passwords via email invite.</span>'
         )
 
 class CustomUserChangeForm(UserChangeForm):
@@ -125,9 +155,37 @@ class CustomUserChangeForm(UserChangeForm):
 class CustomUserAdmin(BaseUserAdmin):
     form = CustomUserChangeForm
     add_form = CustomUserCreationForm
-    actions = ["delete_selected"]
+    actions = ["delete_selected", "send_password_reset_email"]
+
+    @admin.action(description="Send Password Setup / Reset email to selected users")
+    def send_password_reset_email(self, request, queryset):
+        from .emailing import welcome
+        base_url = request.build_absolute_uri("/").rstrip("/")
+        sent = 0
+        for u in queryset:
+            if u.email:
+                welcome(u, base_url, password_setup=True)
+                sent += 1
+        from django.contrib import messages
+        messages.success(request, f"Password setup/reset email dispatched to {sent} user(s).")
+
+    def user_change_password(self, request, id, form_url=""):
+        user = self.get_object(request, id)
+        # Block regular staff from setting candidate passwords directly
+        if user and not user.is_staff and not request.user.is_superuser:
+            from django.contrib import messages
+            messages.error(request, "Security Policy: Instructors cannot manually type candidate passwords. Use the 'Send Password Setup / Reset email' action instead.")
+            return redirect("..")
+        return super().user_change_password(request, id, form_url)
 
     def save_model(self, request, obj, form, change):
+        # Prevent non-superusers from creating or promoting instructors
+        if not request.user.is_superuser:
+            role = form.cleaned_data.get("role", "student")
+            if role == "instructor" or obj.is_staff or obj.is_superuser:
+                from django.core.exceptions import PermissionDenied
+                raise PermissionDenied("Only Academy Administrators (Superusers) can create or promote Instructor accounts.")
+
         super().save_model(request, obj, form, change)
         if not change and obj.email:
             from .emailing import welcome
@@ -138,6 +196,7 @@ class CustomUserAdmin(BaseUserAdmin):
                 "target_username": obj.username,
                 "target_email": obj.email,
             }, client_ip(request))
+
 
 
     list_display = ("username", "full_name_display", "email", "role_badge", "active_badge", "date_joined")

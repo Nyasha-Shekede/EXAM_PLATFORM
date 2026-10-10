@@ -380,14 +380,11 @@ def quick_add_candidate(request):
     username = data.get("username", "").strip()
     name = data.get("name", "").strip()
     email = data.get("email", "").strip()
-    password = data.get("password", "").strip()
 
     if not username:
         return JsonResponse({"ok": False, "error": "Candidate ID / Username is required."}, status=400)
-    if not password:
-        return JsonResponse({"ok": False, "error": "Password is required."}, status=400)
-    if len(password) < 6:
-        return JsonResponse({"ok": False, "error": "Password must be at least 6 characters."}, status=400)
+    if not email:
+        return JsonResponse({"ok": False, "error": "Candidate Email address is required to deliver their password invite link."}, status=400)
     if User.objects.filter(username__iexact=username).exists():
         return JsonResponse({"ok": False, "error": f"Candidate with ID '{username}' already exists."}, status=400)
 
@@ -395,17 +392,19 @@ def quick_add_candidate(request):
     first_name = name_parts[0] if name_parts else ""
     last_name = name_parts[1] if len(name_parts) > 1 else ""
 
-    user = User.objects.create_user(
+    user = User(
         username=username,
         email=email,
-        password=password,
         first_name=first_name,
         last_name=last_name,
         is_staff=False,
+        is_superuser=False,
     )
+    user.set_unusable_password()
+    user.save()
+
     from .emailing import welcome
-    if email:
-        welcome(user, request.build_absolute_uri("/").rstrip("/"), password_setup=True)
+    welcome(user, request.build_absolute_uri("/").rstrip("/"), password_setup=True)
     return JsonResponse({
         "ok": True,
         "id": user.pk,

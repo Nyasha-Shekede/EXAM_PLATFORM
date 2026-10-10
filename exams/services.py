@@ -11,6 +11,10 @@ from .models import *
 def client_ip(request):
     return request.META.get("HTTP_X_FORWARDED_FOR",request.META.get("REMOTE_ADDR","" )).split(",")[0].strip() or None
 
+def client_user_agent(request):
+    return (request.META.get("HTTP_USER_AGENT", "") or "")[:255] or None
+
+
 def audit(action,obj,actor=None,details=None,ip=None):
     last=AuditEvent.objects.order_by("-id").first(); prev=last.event_hash if last else ""
     at=timezone.now()
@@ -120,7 +124,7 @@ def reconcile_exam_pools():
             exam.save(update_fields=["question_count"])
 
 @transaction.atomic
-def start_attempt(exam, candidate, ip=None):
+def start_attempt(exam, candidate, ip=None, user_agent=None):
     reconcile_exam_pools()
     exam.refresh_from_db()
     assignment = Assignment.objects.select_for_update().filter(exam=exam, candidate=candidate, active=True).first()
@@ -137,7 +141,7 @@ def start_attempt(exam, candidate, ip=None):
         elif current.is_open:
             return current
         else:
-            submit_attempt(current, expired=True, actor=candidate, ip=ip)
+            submit_attempt(current, expired=True, actor=candidate, ip=ip, user_agent=user_agent)
     count = Attempt.objects.filter(exam=exam, candidate=candidate).count()
     if count >= exam.max_attempts:
         raise ValidationError("No attempts remain.")
@@ -161,17 +165,23 @@ def start_attempt(exam, candidate, ip=None):
             rng.shuffle(opts)
         for idx, o in enumerate(opts):
             AttemptOption.objects.create(attempt_question=aq, display_key=chr(65+idx), text=o.text, is_correct=o.is_correct)
-    audit("ATTEMPT_STARTED", attempt, candidate, {"expires_at": attempt.expires_at.isoformat(), "question_count": len(chosen)}, ip)
+    audit("ATTEMPT_STARTED", attempt, candidate, {
+        "expires_at": attempt.expires_at.isoformat(),
+        "question_count": len(chosen),
+        "user_agent": user_agent,
+    }, ip)
     from .emailing import attempt_notice
     attempt_notice(attempt, "started")
     return attempt
 
-def save_response(attempt,aq,selected_keys,actor=None,ip=None):
+def save_response(attempt,aq,selected_keys,actor=None,ip=None,user_agent=None):
+    if actor and actor != attempt.candidate:
+        raise ValidationError("Security violation: Only the assigned candidate can submit responses for this attempt.")
     with transaction.atomic():
         locked=Attempt.objects.select_for_update().get(pk=attempt.pk)
         closed=locked.status!=Attempt.IN_PROGRESS or timezone.now()>=locked.expires_at
     if closed:
-        if locked.status==Attempt.IN_PROGRESS: submit_attempt(locked,expired=True,actor=actor,ip=ip)
+        if locked.status==Attempt.IN_PROGRESS: submit_attempt(locked,expired=True,actor=actor,ip=ip,user_agent=user_agent)
         raise ValidationError("The attempt is closed.")
     with transaction.atomic():
         locked=Attempt.objects.select_for_update().get(pk=attempt.pk)
@@ -182,12 +192,27 @@ def save_response(attempt,aq,selected_keys,actor=None,ip=None):
         if aq.question_type==Question.SINGLE and len(selected)>1: raise ValidationError("Select one option only.")
         response,_=Response.objects.update_or_create(attempt_question=aq,defaults={"selected_keys":selected,"is_correct":None,"awarded_marks":None})
         aq.last_saved_at=timezone.now(); aq.save(update_fields=["last_saved_at"])
+
+        # Detect and audit mid-exam IP shifts
+        if ip:
+            started_ev = AuditEvent.objects.filter(action="ATTEMPT_STARTED", object_id=str(attempt.pk)).first()
+            if started_ev and started_ev.ip_address and started_ev.ip_address != ip:
+                if not AuditEvent.objects.filter(action="SUSPICIOUS_IP_CHANGE", object_id=str(attempt.pk), ip_address=ip).exists():
+                    audit("SUSPICIOUS_IP_CHANGE", attempt, actor, {
+                        "original_ip": started_ev.ip_address,
+                        "new_ip": ip,
+                        "user_agent": user_agent,
+                        "question_position": aq.position,
+                    }, ip=ip)
+
         return response
 
 @transaction.atomic
-def submit_attempt(attempt,expired=False,actor=None,ip=None):
+def submit_attempt(attempt,expired=False,actor=None,ip=None,user_agent=None):
     attempt=Attempt.objects.select_for_update().get(pk=attempt.pk)
     if attempt.status!=Attempt.IN_PROGRESS: return attempt
+    if not expired and actor and actor != attempt.candidate:
+        raise ValidationError("Security violation: Only the assigned candidate can finish this attempt.")
     total=Decimal("0"); maximum=Decimal("0")
     for aq in attempt.attempt_questions.prefetch_related("snapshot_options").all():
         maximum += aq.marks
@@ -205,10 +230,17 @@ def submit_attempt(attempt,expired=False,actor=None,ip=None):
     code=hmac.new(settings.SECRET_KEY.encode(),canonical.encode(),hashlib.sha256).hexdigest()
     attempt.score=total; attempt.max_score=maximum; attempt.percentage=pct; attempt.passed=passed; attempt.submitted_at=submitted; attempt.status=Attempt.EXPIRED if expired else Attempt.SUBMITTED; attempt.verification_code=code
     attempt.save(update_fields=["score","max_score","percentage","passed","submitted_at","status","verification_code"])
-    audit("ATTEMPT_EXPIRED" if expired else "ATTEMPT_SUBMITTED",attempt,actor,{"score":str(total),"max_score":str(maximum),"percentage":str(pct),"passed":passed},ip)
+    audit("ATTEMPT_EXPIRED" if expired else "ATTEMPT_SUBMITTED",attempt,actor,{
+        "score":str(total),
+        "max_score":str(maximum),
+        "percentage":str(pct),
+        "passed":passed,
+        "user_agent":user_agent,
+    },ip)
     from .emailing import attempt_notice
     attempt_notice(attempt, "submitted")
     return attempt
+
 
 def verify_audit_chain():
     prev=""

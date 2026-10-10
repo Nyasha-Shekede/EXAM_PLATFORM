@@ -132,6 +132,13 @@ class CustomUserAdmin(BaseUserAdmin):
         if not change and obj.email:
             from .emailing import welcome
             welcome(obj, request.build_absolute_uri("/").rstrip("/"), password_setup=True)
+        if change and "password" in getattr(form, "changed_data", []):
+            from .services import audit, client_ip
+            audit("STAFF_CHANGED_USER_PASSWORD", obj, request.user, {
+                "target_username": obj.username,
+                "target_email": obj.email,
+            }, client_ip(request))
+
 
     list_display = ("username", "full_name_display", "email", "role_badge", "active_badge", "date_joined")
     list_filter = (UserRoleFilter, UserStatusFilter)
@@ -249,12 +256,39 @@ class AttemptAdmin(admin.ModelAdmin):
     list_filter = ("exam", "status", "passed")
     search_fields = ("candidate__username", "candidate__first_name", "candidate__last_name")
     readonly_fields = [f.name for f in Attempt._meta.fields]
+    actions = ["export_as_csv"]
 
     def has_add_permission(self, request):
         return False
 
     def has_change_permission(self, request, obj=None):
         return False
+
+    @admin.action(description="Export selected submissions to CSV")
+    def export_as_csv(self, request, queryset):
+        import csv
+        from django.http import HttpResponse
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = 'attachment; filename="candidate_submissions.csv"'
+        writer = csv.writer(response)
+        writer.writerow(["ID", "Exam", "Candidate_Username", "Candidate_Name", "Attempt_No", "Status", "Score", "Max_Score", "Percentage", "Passed", "Started_At", "Submitted_At", "Verification_Code"])
+        for a in queryset.select_related("exam", "candidate"):
+            writer.writerow([
+                str(a.id),
+                a.exam.title,
+                a.candidate.username,
+                a.candidate.get_full_name() or a.candidate.username,
+                a.attempt_number,
+                a.status,
+                a.score if a.score is not None else "",
+                a.max_score if a.max_score is not None else "",
+                a.percentage if a.percentage is not None else "",
+                "PASS" if a.passed else ("FAIL" if a.passed is False else ""),
+                a.started_at.isoformat() if a.started_at else "",
+                a.submitted_at.isoformat() if a.submitted_at else "",
+                a.verification_code,
+            ])
+        return response
 
 @admin.register(AuditEvent)
 class AuditEventAdmin(admin.ModelAdmin):
@@ -264,6 +298,7 @@ class AuditEventAdmin(admin.ModelAdmin):
     list_filter = ("action", "object_type")
     search_fields = ("action", "object_id", "actor__username", "ip_address")
     readonly_fields = [f.name for f in AuditEvent._meta.fields]
+    actions = ["export_as_csv"]
 
     def has_add_permission(self, request):
         return False
@@ -273,6 +308,30 @@ class AuditEventAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+    @admin.action(description="Export selected audit events to CSV")
+    def export_as_csv(self, request, queryset):
+        import csv, json
+        from django.http import HttpResponse
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = 'attachment; filename="audit_log_export.csv"'
+        writer = csv.writer(response)
+        writer.writerow(["ID", "Timestamp_UTC", "Actor", "Action", "Object_Type", "Object_ID", "IP_Address", "Details", "Event_Hash", "Previous_Hash"])
+        for e in queryset.select_related("actor"):
+            writer.writerow([
+                e.id,
+                e.at.isoformat() if e.at else "",
+                e.actor.username if e.actor else "System",
+                e.action,
+                e.object_type,
+                e.object_id,
+                e.ip_address or "",
+                json.dumps(e.details or {}),
+                e.event_hash,
+                e.previous_hash,
+            ])
+        return response
+
 
 admin.site.site_header = "Africa Drone Kings"
 admin.site.site_title = "Africa Drone Kings"

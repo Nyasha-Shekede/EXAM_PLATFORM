@@ -1,0 +1,37 @@
+{% extends "emails/base_email.html" %}
+
+{% block content %}
+<h2 class="title">Exam Attempt Submitted</h2>
+<p class="lead">
+  Hello {{ user.get_full_name|default:user.username }}, your examination submission for <strong>{{ exam.title }}</strong> has been recorded.
+</p>
+
+<div class="info-box">
+  <strong>Attempt Summary:</strong><br>
+  <strong>Exam:</strong> {{ exam.title }}<br>
+  <strong>Attempt Number:</strong> #{{ attempt.attempt_number }}<br>
+  <strong>Status:</strong> Completed & Evaluated<br>
+  {% if attempt.score is not None %}
+  <strong>Score:</strong> {{ attempt.score }} / {{ attempt.max_score }} ({{ attempt.percentage }}%)<br>
+  <strong>Result:</strong>
+    {% if attempt.passed %}
+      <span style="color: #16a34a; font-weight: bold;">PASSED</span>
+    {% else %}
+      <span style="color: #dc2626; font-weight: bold;">DID NOT PASS (Pass mark: {{ exam.pass_mark }}%)</span>
+    {% endif %}
+  {% endif %}
+</div>
+
+<p style="font-size: 14px; color: #475569; line-height: 1.5;">
+  You can review your detailed breakdown, sectional score report, and download your official PDF result certificate by logging into your dashboard.
+</p>
+
+<div class="btn-container">
+  <a href="{{ action_url }}" class="btn">View Exam Result & Certificate</a>
+</div>
+
+<p class="secondary-link">
+  If the button does not work, copy and paste this link into your browser:<br>
+  <a href="{{ action_url }}">{{ action_url }}</a>
+</p>
+{% endblock %}

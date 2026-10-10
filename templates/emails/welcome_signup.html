@@ -1,0 +1,23 @@
+{% extends "emails/base_email.html" %}
+
+{% block content %}
+<h2 class="title">Welcome, {{ user.get_full_name|default:user.username }}!</h2>
+<p class="lead">
+  Your student account has been created on <strong>{{ site_name }}</strong>. You are now ready to explore available training modules, access study materials, and take assigned examinations.
+</p>
+
+<div class="info-box">
+  <strong>Your Account Details:</strong><br>
+  <strong>Username:</strong> <code style="font-size: 15px; color: #0f172a;">{{ user.username }}</code><br>
+  <strong>Email:</strong> {{ user.email }}
+</div>
+
+<div class="btn-container">
+  <a href="{{ action_url }}" class="btn">Access Student Dashboard</a>
+</div>
+
+<p class="secondary-link">
+  If the button does not work, copy and paste this link into your browser:<br>
+  <a href="{{ action_url }}">{{ action_url }}</a>
+</p>
+{% endblock %}

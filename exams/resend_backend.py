@@ -19,6 +19,15 @@ class ResendBackend(BaseEmailBackend):
                 continue
             data = {"from": message.from_email or settings.DEFAULT_FROM_EMAIL,
                     "to": recipients, "subject": message.subject, "text": message.body}
+            # Support HTML email content if present
+            if hasattr(message, "alternatives"):
+                for content, mimetype in message.alternatives:
+                    if mimetype == "text/html":
+                        data["html"] = content
+                        break
+            if hasattr(message, "content_subtype") and message.content_subtype == "html":
+                data["html"] = message.body
+
             if message.cc:
                 data["cc"] = message.cc
             if message.bcc:

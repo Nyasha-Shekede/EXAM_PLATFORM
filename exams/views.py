@@ -21,7 +21,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from .forms import CreateExamForm, ImportForm
 from .importers import import_simple_questions
 from .models import Assignment, Attempt, AttemptQuestion, Exam, Question, Response
-from .services import client_ip,save_response,start_attempt,submit_attempt,audit,reconcile_exam_pools
+from .services import client_ip,client_user_agent,save_response,start_attempt,submit_attempt,audit,reconcile_exam_pools
 
 def home(request): return redirect("dashboard" if request.user.is_authenticated else "login")
 @login_required
@@ -90,21 +90,21 @@ def begin(request,exam_id):
     if a.exam.available_until and timezone.now() > a.exam.available_until:
         messages.error(request, "This examination has expired and is no longer accepting submissions.")
         return redirect("dashboard")
-    try: attempt=start_attempt(a.exam,request.user,client_ip(request))
+    try: attempt=start_attempt(a.exam,request.user,client_ip(request),client_user_agent(request))
     except ValidationError as e: messages.error(request,"; ".join(e.messages)); return redirect("dashboard")
     return redirect("question",attempt_id=attempt.id,position=1)
 
-def owned_attempt(user, pk, allow_staff=True):
+def owned_attempt(user, pk, allow_staff=False):
     qs = Attempt.objects.select_related("exam", "candidate")
     if allow_staff and user.is_staff:
         return get_object_or_404(qs, pk=pk)
     return get_object_or_404(qs, pk=pk, candidate=user)
 @login_required
 def question(request,attempt_id,position):
-    attempt=owned_attempt(request.user,attempt_id)
+    attempt=owned_attempt(request.user,attempt_id,allow_staff=False)
     if attempt.status!=Attempt.IN_PROGRESS: return redirect("result",attempt_id=attempt.id)
     if timezone.now()>=attempt.expires_at:
-        submit_attempt(attempt,expired=True,actor=request.user,ip=client_ip(request)); return redirect("result",attempt_id=attempt.id)
+        submit_attempt(attempt,expired=True,actor=request.user,ip=client_ip(request),user_agent=client_user_agent(request)); return redirect("result",attempt_id=attempt.id)
     aq=get_object_or_404(AttemptQuestion.objects.prefetch_related("snapshot_options"),attempt=attempt,position=position)
     if not aq.first_viewed_at: aq.first_viewed_at=timezone.now(); aq.save(update_fields=["first_viewed_at"])
     try: selected=aq.response.selected_keys
@@ -115,9 +115,9 @@ def question(request,attempt_id,position):
 def answer(request,attempt_id,position):
     if request.method != "POST":
         return redirect("question", attempt_id=attempt_id, position=position)
-    attempt=owned_attempt(request.user,attempt_id); aq=get_object_or_404(AttemptQuestion,attempt=attempt,position=position)
+    attempt=owned_attempt(request.user,attempt_id,allow_staff=False); aq=get_object_or_404(AttemptQuestion,attempt=attempt,position=position)
     selected=request.POST.getlist("selected")
-    try: save_response(attempt,aq,selected,request.user,client_ip(request))
+    try: save_response(attempt,aq,selected,request.user,client_ip(request),client_user_agent(request))
     except ValidationError as e:
         if request.headers.get("x-requested-with")=="XMLHttpRequest": return JsonResponse({"ok":False,"error":"; ".join(e.messages)},status=409)
         messages.error(request,"; ".join(e.messages)); return redirect("question",attempt.id,position)
@@ -130,10 +130,10 @@ def answer(request,attempt_id,position):
 def flag_question(request,attempt_id,position):
     if request.method != "POST":
         return redirect("question", attempt_id=attempt_id, position=position)
-    attempt=owned_attempt(request.user,attempt_id); aq=get_object_or_404(AttemptQuestion,attempt=attempt,position=position); aq.flagged=not aq.flagged; aq.save(update_fields=["flagged"]); return JsonResponse({"ok":True,"flagged":aq.flagged})
+    attempt=owned_attempt(request.user,attempt_id,allow_staff=False); aq=get_object_or_404(AttemptQuestion,attempt=attempt,position=position); aq.flagged=not aq.flagged; aq.save(update_fields=["flagged"]); return JsonResponse({"ok":True,"flagged":aq.flagged})
 @login_required
 def confirm_submit(request,attempt_id):
-    attempt=owned_attempt(request.user,attempt_id)
+    attempt=owned_attempt(request.user,attempt_id,allow_staff=False)
     unanswered_positions=list(attempt.attempt_questions.filter(Q(response__isnull=True)|Q(response__selected_keys=[])).order_by("position").values_list("position",flat=True))
     flagged_positions=list(attempt.attempt_questions.filter(flagged=True).order_by("position").values_list("position",flat=True))
     total_count=attempt.attempt_questions.count()
@@ -152,8 +152,8 @@ def confirm_submit(request,attempt_id):
 def finish(request,attempt_id):
     if request.method != "POST":
         return redirect("confirm_submit", attempt_id=attempt_id)
-    attempt=owned_attempt(request.user,attempt_id)
-    submit_attempt(attempt,expired=timezone.now()>=attempt.expires_at,actor=request.user,ip=client_ip(request))
+    attempt=owned_attempt(request.user,attempt_id,allow_staff=False)
+    submit_attempt(attempt,expired=timezone.now()>=attempt.expires_at,actor=request.user,ip=client_ip(request),user_agent=client_user_agent(request))
     return redirect("result",attempt_id=attempt.id)
 @login_required
 def result(request,attempt_id):

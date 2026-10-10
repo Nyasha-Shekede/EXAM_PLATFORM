@@ -1,0 +1,29 @@
+{% extends "emails/base_email.html" %}
+
+{% block content %}
+<h2 class="title">Exam Attempt In Progress</h2>
+<p class="lead">
+  Hello {{ user.get_full_name|default:user.username }}, your examination attempt has officially started.
+</p>
+
+<div class="info-box">
+  <strong>Exam Details:</strong><br>
+  <strong>Title:</strong> {{ exam.title }}<br>
+  {% if exam.module %}<strong>Module:</strong> {{ exam.module.title }} ({{ exam.module.code }})<br>{% endif %}
+  <strong>Questions:</strong> {{ attempt.attempt_questions.count }} questions<br>
+  <strong>Time Limit:</strong> {{ duration_minutes }} minutes
+</div>
+
+<p style="font-size: 14px; color: #475569; line-height: 1.5;">
+  If you were disconnected or need to resume your session, return immediately before your time limit expires. Your answers are automatically saved as you select each question.
+</p>
+
+<div class="btn-container">
+  <a href="{{ action_url }}" class="btn">Resume Examination</a>
+</div>
+
+<p class="secondary-link">
+  If the button does not work, copy and paste this link into your browser:<br>
+  <a href="{{ action_url }}">{{ action_url }}</a>
+</p>
+{% endblock %}

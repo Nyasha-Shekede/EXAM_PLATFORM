@@ -1,8 +1,12 @@
 """Minimal Django email backend for Resend's HTTPS API (no SDK required)."""
 import json
+import logging
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 from django.conf import settings
 from django.core.mail.backends.base import BaseEmailBackend
+
+logger = logging.getLogger(__name__)
 
 
 class ResendBackend(BaseEmailBackend):
@@ -42,7 +46,13 @@ class ResendBackend(BaseEmailBackend):
                 with urlopen(request, timeout=8) as response:
                     response.read()
                 count += 1
+            except HTTPError as e:
+                err_body = e.read().decode("utf-8", errors="replace")
+                logger.error("Resend API rejected email (HTTP %s): %s", e.code, err_body)
+                if not self.fail_silently:
+                    raise RuntimeError(f"Resend rejected email (HTTP {e.code}): {err_body}") from e
             except Exception:
                 if not self.fail_silently:
                     raise
         return count
+

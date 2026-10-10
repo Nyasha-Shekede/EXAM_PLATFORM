@@ -1,3 +1,7 @@
+# Render maintenance review (unversioned)
+
+See `docs/CODE_REVIEW.md` and `docs/TEST_REPORT.md` for the current fixes and executed checks. This maintenance patch preserves the existing database schema, removes tracked environment/serverless artifacts, hardens bootstrap/attempts/storage and refreshes Render documentation. The entries below describe historical releases, not current test coverage or import-column counts.
+
 # 1.0.0-rc2 — 2026-09-27
 
 Question importing is now a one-upload workflow:

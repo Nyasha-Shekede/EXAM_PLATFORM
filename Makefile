@@ -10,7 +10,7 @@ help: ## Show available commands
 	@echo "Usage: make [target]"
 	@echo ""
 	@echo "Container Lifecycle:"
-	@echo "  up              Start containers in background (auto-migrates & seeds)"
+	@echo "  up              Start containers in background (runs migrations; no demo credentials)"
 	@echo "  down            Stop and remove containers"
 	@echo "  restart         Restart containers"
 	@echo "  build           Rebuild Docker images"
@@ -21,7 +21,6 @@ help: ## Show available commands
 	@echo "  test            Run automated test suite"
 	@echo "  check           Run Django system and security checks"
 	@echo "  superuser       Create an admin account interactively"
-	@echo "  seed            Seed demo questions and candidate/admin accounts"
 	@echo "  migrate         Apply database migrations manually"
 	@echo "  audit           Verify cryptographic audit trail chain integrity"
 	@echo "  shell           Open interactive Django shell in web container"
@@ -70,10 +69,6 @@ check: ## Run security & deploy checks inside container
 superuser: ## Create an admin user inside container
 	$(MANAGE) createsuperuser
 
-.PHONY: seed
-seed: ## Seed demo dataset inside container
-	$(MANAGE) seed_demo
-
 .PHONY: migrate
 migrate: ## Run migrations manually inside container
 	$(MANAGE) migrate
@@ -93,13 +88,13 @@ bash: ## Shell inside web container
 # --- Backups & Maintenance ---
 .PHONY: backup-db
 backup-db: ## Dump PostgreSQL database
-	$(COMPOSE) exec -T db pg_dump -Fc -U postgres drone_exams > backup-db.dump
+	$(COMPOSE) exec -T db sh -c 'pg_dump -Fc -U "$$POSTGRES_USER" "$$POSTGRES_DB"' > backup-db.dump
 	@echo "Saved backup-db.dump"
 
 .PHONY: backup-media
 backup-media: ## Archive media volume
 	mkdir -p backups
-	docker run --rm -v drone_exam_media_data:/data:ro -v "$$(pwd)/backups":/backup alpine tar czf /backup/media-backup.tgz -C /data .
+	$(COMPOSE) exec -T web tar czf - -C /app/media . > backups/media-backup.tgz
 	@echo "Saved backups/media-backup.tgz"
 
 .PHONY: clean

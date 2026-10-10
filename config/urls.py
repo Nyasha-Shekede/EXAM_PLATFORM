@@ -2,8 +2,10 @@ from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path
 from django.conf import settings
+from .health import health
 
 urlpatterns = [
+    path("health/", health, name="health"),
     path("admin/", admin.site.urls),
     path(
         "accounts/password_reset/",

@@ -3,6 +3,8 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.exceptions import ValidationError
+from django.db import transaction
+from django.contrib.auth import get_user_model
 from django.db.models import Count, Q
 from django.http import Http404, HttpResponse, JsonResponse, FileResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -21,12 +23,11 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from .forms import CreateExamForm, ImportForm
 from .importers import import_simple_questions
 from .models import Assignment, Attempt, AttemptQuestion, Exam, Question, Response
-from .services import client_ip,client_user_agent,save_response,start_attempt,submit_attempt,audit,reconcile_exam_pools
+from .services import client_ip,client_user_agent,save_response,start_attempt,submit_attempt,audit
 
 def home(request): return redirect("dashboard" if request.user.is_authenticated else "login")
 @login_required
 def dashboard(request):
-    reconcile_exam_pools()
     now = timezone.now()
     assignments=Assignment.objects.filter(candidate=request.user,active=True).select_related("exam","exam__module")
     rows=[]
@@ -101,16 +102,17 @@ def owned_attempt(user, pk, allow_staff=False):
     return get_object_or_404(qs, pk=pk, candidate=user)
 @login_required
 def question(request,attempt_id,position):
-    attempt=owned_attempt(request.user,attempt_id,allow_staff=False)
+    attempt=owned_attempt(request.user,attempt_id,allow_staff=True)
+    preview = request.user != attempt.candidate
     if attempt.status!=Attempt.IN_PROGRESS: return redirect("result",attempt_id=attempt.id)
-    if timezone.now()>=attempt.expires_at:
+    if not preview and timezone.now()>=attempt.expires_at:
         submit_attempt(attempt,expired=True,actor=request.user,ip=client_ip(request),user_agent=client_user_agent(request)); return redirect("result",attempt_id=attempt.id)
     aq=get_object_or_404(AttemptQuestion.objects.prefetch_related("snapshot_options"),attempt=attempt,position=position)
-    if not aq.first_viewed_at: aq.first_viewed_at=timezone.now(); aq.save(update_fields=["first_viewed_at"])
+    if not preview and not aq.first_viewed_at: aq.first_viewed_at=timezone.now(); aq.save(update_fields=["first_viewed_at"])
     try: selected=aq.response.selected_keys
     except Response.DoesNotExist: selected=[]
     palette=attempt.attempt_questions.annotate(answered=Count("response",filter=~Q(response__selected_keys=[]))).values("position","flagged","answered").order_by("position")
-    return render(request,"exams/question.html",{"attempt":attempt,"q":aq,"selected":selected,"palette":palette,"total":attempt.attempt_questions.count(),"now_epoch":int(timezone.now().timestamp()),"expires_epoch":int(attempt.expires_at.timestamp())})
+    return render(request,"exams/question.html",{"attempt":attempt,"q":aq,"selected":selected,"palette":palette,"total":attempt.attempt_questions.count(),"now_epoch":int(timezone.now().timestamp()),"expires_epoch":int(attempt.expires_at.timestamp()),"preview":preview})
 @login_required
 def answer(request,attempt_id,position):
     if request.method != "POST":
@@ -130,7 +132,15 @@ def answer(request,attempt_id,position):
 def flag_question(request,attempt_id,position):
     if request.method != "POST":
         return redirect("question", attempt_id=attempt_id, position=position)
-    attempt=owned_attempt(request.user,attempt_id,allow_staff=False); aq=get_object_or_404(AttemptQuestion,attempt=attempt,position=position); aq.flagged=not aq.flagged; aq.save(update_fields=["flagged"]); return JsonResponse({"ok":True,"flagged":aq.flagged})
+    attempt=owned_attempt(request.user,attempt_id,allow_staff=False)
+    with transaction.atomic():
+        locked = Attempt.objects.select_for_update().get(pk=attempt.pk)
+        if not locked.is_open:
+            return JsonResponse({"ok": False, "error": "The attempt is closed."}, status=409)
+        aq=get_object_or_404(AttemptQuestion,attempt=locked,position=position)
+        aq.flagged=not aq.flagged
+        aq.save(update_fields=["flagged"])
+    return JsonResponse({"ok":True,"flagged":aq.flagged})
 @login_required
 def confirm_submit(request,attempt_id):
     attempt=owned_attempt(request.user,attempt_id,allow_staff=False)
@@ -197,7 +207,7 @@ def attempt_image(request,attempt_id,position):
 def protected_media(request,path):
     from pathlib import PurePosixPath
     p=PurePosixPath(path)
-    if p.is_absolute() or ".." in p.parts or not default_storage.exists(path): raise Http404
+    if p.is_absolute() or ".." in p.parts or not p.parts or p.parts[0] != "question_images" or not default_storage.exists(path): raise Http404
     content_type={".png":"image/png",".jpg":"image/jpeg",".jpeg":"image/jpeg",".webp":"image/webp"}.get(p.suffix.lower(),"application/octet-stream")
     return FileResponse(default_storage.open(path,"rb"),content_type=content_type)
 
@@ -272,6 +282,7 @@ def template_download(request):
 
 
 @user_passes_test(staff_required)
+@transaction.atomic
 def create_exam_view(request):
     import uuid, re
     from .models import Module, Category
@@ -290,7 +301,7 @@ def create_exam_view(request):
             candidates = form.cleaned_data["candidates"]
 
             # Import questions under the chosen subject module
-            res = import_simple_questions(spreadsheet, images, request.user, default_module=module_name)
+            res = import_simple_questions(spreadsheet, images, request.user, default_module=module_name, require_single_module=True)
             if not res["ok"]:
                 return render(request, "exams/create_exam.html", {
                     "form": form,
@@ -299,13 +310,15 @@ def create_exam_view(request):
                 })
 
             imported_count = res["imported"]
-            module_code = re.sub(r'[^A-Z0-9]+', '_', module_name.upper()).strip('_')[:50] or "MODULE"
-            module, _ = Module.objects.get_or_create(code=module_code, defaults={"title": module_name})
-
-            # Ensure all questions under this module are PUBLISHED so the exam can be taken immediately
-            if res.get("imported_ids"):
-                Question.objects.filter(id__in=res["imported_ids"]).update(module=module, status=Question.PUBLISHED)
-            Question.objects.filter(module=module, status=Question.DRAFT).update(status=Question.PUBLISHED)
+            # The importer owns each question's module/category pair. Never reparent it
+            # or publish unrelated drafts simply because an instructor creates an exam.
+            imported_questions = Question.objects.filter(id__in=res.get("imported_ids", []))
+            module_ids = set(imported_questions.values_list("module_id", flat=True))
+            if len(module_ids) != 1:
+                messages.error(request, "Use a single module per examination spreadsheet.")
+                return redirect("create_exam")
+            module = Module.objects.get(pk=module_ids.pop())
+            imported_questions.update(status=Question.PUBLISHED)
             published_pool = Question.objects.filter(module=module, status=Question.PUBLISHED).count()
 
             exam_code = re.sub(r'[^A-Za-z0-9_-]', '', title.upper().replace(' ', '-'))[:40] or f"EXAM-{uuid.uuid4().hex[:8].upper()}"
@@ -318,10 +331,14 @@ def create_exam_view(request):
 
             # Determine final question count: instructor specified or all available in pool
             if q_count_input and q_count_input > 0:
-                final_question_count = min(q_count_input, published_pool or imported_count)
+                final_question_count = q_count_input
             else:
                 final_question_count = published_pool or imported_count or 1
             final_question_count = max(1, final_question_count)
+            if final_question_count > published_pool:
+                form.add_error("question_count", f"Only {published_pool} published questions are available.")
+                transaction.set_rollback(True)
+                return render(request, "exams/create_exam.html", {"form": form, "existing_modules": existing_modules})
 
             available_from = form.cleaned_data.get("available_from")
             available_until = form.cleaned_data.get("available_until")
@@ -356,11 +373,13 @@ def create_exam_view(request):
 
 @user_passes_test(staff_required)
 @require_POST
+@transaction.atomic
 def delete_exam(request, exam_id):
-    exam = get_object_or_404(Exam, id=exam_id)
+    exam = get_object_or_404(Exam.objects.select_for_update(), id=exam_id)
     title = exam.title
-    Assignment.objects.filter(exam=exam).delete()
-    Attempt.objects.filter(exam=exam).delete()
+    if Attempt.objects.filter(exam=exam).exists():
+        messages.error(request, "This exam has attempts and cannot be deleted. Close it to preserve results.")
+        return redirect("dashboard")
     exam.delete()
     messages.success(request, f"Examination '{title}' was permanently deleted.")
     return redirect("dashboard")
@@ -369,46 +388,35 @@ def delete_exam(request, exam_id):
 @user_passes_test(staff_required)
 @require_POST
 def quick_add_candidate(request):
-    import json, secrets
-    from django.contrib.auth import get_user_model
+    import json
+    from django.core.validators import validate_email
+    from django.db import IntegrityError
     User = get_user_model()
     try:
         data = json.loads(request.body)
-    except Exception:
-        return JsonResponse({"ok": False, "error": "Invalid request payload."}, status=400)
-
+    except (ValueError, UnicodeDecodeError):
+        return JsonResponse({"ok": False, "error": "Invalid JSON payload."}, status=400)
+    if not isinstance(data, dict) or any(not isinstance(data.get(key, ""), str) for key in ("username", "name", "email")):
+        return JsonResponse({"ok": False, "error": "Username, name and email must be text fields."}, status=400)
     username = data.get("username", "").strip()
     name = data.get("name", "").strip()
-    email = data.get("email", "").strip()
-
-    if not username:
-        return JsonResponse({"ok": False, "error": "Candidate ID / Username is required."}, status=400)
-    if not email:
-        return JsonResponse({"ok": False, "error": "Candidate Email address is required to deliver their password invite link."}, status=400)
-    if User.objects.filter(username__iexact=username).exists():
-        return JsonResponse({"ok": False, "error": f"Candidate with ID '{username}' already exists."}, status=400)
-
-    name_parts = name.split(" ", 1)
-    first_name = name_parts[0] if name_parts else ""
-    last_name = name_parts[1] if len(name_parts) > 1 else ""
-
-    user = User(
-        username=username,
-        email=email,
-        first_name=first_name,
-        last_name=last_name,
-        is_staff=False,
-        is_superuser=False,
-    )
+    email = data.get("email", "").strip().lower()
+    if not username or not email:
+        return JsonResponse({"ok": False, "error": "Candidate username and email are required."}, status=400)
+    if User.objects.filter(username__iexact=username).exists() or User.objects.filter(email__iexact=email).exists():
+        return JsonResponse({"ok": False, "error": "That username or email is already in use."}, status=400)
+    parts = name.split(" ", 1)
+    user = User(username=username, email=email, first_name=parts[0], last_name=parts[1] if len(parts) > 1 else "",
+                is_staff=False, is_superuser=False)
     user.set_unusable_password()
-    user.save()
-
-    from .emailing import welcome
-    welcome(user, request.build_absolute_uri("/").rstrip("/"), password_setup=True)
-    return JsonResponse({
-        "ok": True,
-        "id": user.pk,
-        "label": f"{user.get_full_name() or user.username} ({user.username})",
-        "username": user.username,
-    })
-
+    try:
+        validate_email(email)
+        user.full_clean()
+        with transaction.atomic():
+            user.save()
+            from .emailing import welcome, email_base_url
+            welcome(user, email_base_url(request), password_setup=True)
+    except (ValidationError, IntegrityError):
+        return JsonResponse({"ok": False, "error": "Invalid or duplicate account details."}, status=400)
+    return JsonResponse({"ok": True, "id": user.pk,
+                         "label": f"{user.get_full_name() or user.username} ({user.username})", "username": user.username})

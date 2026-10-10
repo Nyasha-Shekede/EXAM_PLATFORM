@@ -136,7 +136,7 @@ class CreateExamForm(forms.Form):
         super().__init__(*args, **kwargs)
         from django.contrib.auth import get_user_model
         User = get_user_model()
-        self.fields["candidates"].queryset = User.objects.filter(is_staff=False).order_by("username")
+        self.fields["candidates"].queryset = User.objects.filter(is_staff=False, is_active=True).order_by("username")
 
     def clean_spreadsheet(self):
         f = self.cleaned_data["spreadsheet"]
@@ -166,5 +166,8 @@ class CreateExamForm(forms.Form):
         au = cleaned.get("available_until")
         if af and au and af >= au:
             raise forms.ValidationError("Exam expiration time must be after the start time.")
+        items = [cleaned.get("spreadsheet"), *cleaned.get("images", [])]
+        if sum(getattr(f, "size", 0) for f in items if f) > MAX_TOTAL_UPLOAD:
+            raise forms.ValidationError("The spreadsheet and pictures exceed the 25 MB upload limit.")
         return cleaned
 

@@ -217,7 +217,7 @@ def validate_simple_rows(rows, assets_by_name, assets_by_stem, default_module=No
             errors.append({"row": row_number, "question_code": "", "errors": row_errors})
         parsed.append({
             "module_title": module_title,
-            "module_code": _safe_code(module_title, "MODULE"),
+            "module_code": _safe_code(module_title, "MODULE")[:30],
             "category_title": category_title,
             "category_code": _safe_code(category_title, "GENERAL"),
             "stem": row["question"], "options": options, "correct": correct,
@@ -227,11 +227,13 @@ def validate_simple_rows(rows, assets_by_name, assets_by_stem, default_module=No
     return parsed, errors
 
 @transaction.atomic
-def import_simple_questions(spreadsheet, image_uploads, user, default_module=None):
+def import_simple_questions(spreadsheet, image_uploads, user, default_module=None, require_single_module=False):
     raw = spreadsheet.read()
     rows = read_simple_rows(spreadsheet.name, raw)
     assets_by_name, assets_by_stem, asset_errors = _read_image_uploads(image_uploads)
     parsed, errors = validate_simple_rows(rows, assets_by_name, assets_by_stem, default_module=default_module)
+    if require_single_module and len({item["module_code"] for item in parsed}) != 1:
+        errors.append({"row": "File", "question_code": "", "errors": ["Use one non-empty module per examination spreadsheet."]})
     if asset_errors:
         errors.insert(0, {"row": "Pictures", "question_code": "", "errors": asset_errors})
     if errors:

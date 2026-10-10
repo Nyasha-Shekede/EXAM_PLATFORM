@@ -1,100 +1,50 @@
-# Instructor and candidate guide
+# Instructor and student guide
 
-## Instructor: initial setup
+## Accounts and roles
 
-1. Sign in at `/admin/` with a superuser account.
-2. Under **Authentication and Authorization → Users**, create each candidate. Use a stable academy candidate number as username and a unique email. Do not give staff/superuser status.
-3. Under **Modules**, create curriculum modules such as Air Law or Meteorology.
-4. Add categories within each module. Categories drive the result breakdown.
+Students can register at `/signup/` (if public registration is enabled) or receive an instructor-created email invitation. Invitations contain a link to set a password; no raw passwords are sent. Sign in using username or email. If a student has never set a password and their invitation expires, an authorized instructor/administrator uses the user-list **Send Password Setup / Reset email** action to resend it.
 
-## Instructor: add questions manually
+Administrators create/promote instructors. Regular instructors cannot edit, delete, reset or take over administrator/instructor accounts. Instructor access to Django admin additionally requires appropriate model permissions; `is_staff` grants admin-site access, not every model permission.
 
-1. Open **Questions → Add**.
-2. Choose module and a category belonging to it.
-3. Select `SINGLE` or `MULTIPLE` explicitly.
-4. Enter the stem, marks, difficulty and optional explanation.
-5. Optionally upload a PNG/JPEG/WebP diagram and provide meaningful alt text.
-6. Add at least two options in the inline table and mark the correct option(s).
-7. Save as `DRAFT`; independently review wording, answer and image; then change to `PUBLISHED`.
+## Learning modules
 
-A `SINGLE` question must have exactly one correct option. A `MULTIPLE` question needs two or more and is marked only when the candidate selects the exact complete set.
+1. Choose **Modules → Create module**. Use a stable code of letters/numbers/hyphens/underscores (30 characters maximum). `NEW` is reserved for the create route.
+2. Add a title/description and lessons. Plain-text lessons require text or an attachment (PDF, PNG, JPG/JPEG or TXT, at most 10 MB).
+3. Draft lessons are visible to the module author/administrator, not students or unrelated instructors. Publish each lesson when ready.
+4. Students enroll in active modules to see published lessons and private resources. Inactive modules are unlisted from the student catalog.
+5. Course enrollment does not automatically assign any exam. Exams remain deliberately assigned by staff.
 
-## Instructor: bulk question import
+## Question import and exam creation
 
-The default importer now uses one short spreadsheet and one upload:
+Download `/staff/import/template.xlsx`. The current template has nine columns:
 
-1. Visit `/staff/import/` and click **Download simple template**.
-2. Fill one question per row on the `Questions` sheet.
-3. Use `A` for one correct answer or `A,C` for multiple correct answers.
-4. If a row uses a picture, enter its exact filename in **Image** and a useful description in **Image Description**.
-5. Upload the spreadsheet. Select all referenced pictures in the optional picture field at the same time.
-6. Click **Import questions** once.
-7. Correct any row errors shown. Nothing is written when any row is invalid.
-8. Review the imported drafts in administration and publish them when approved.
+`Category, Question, Option A, Option B, Option C, Option D, Correct Answer, Image, Image Description`
 
-There is no question-code column, question-type column, marks column, difficulty column, status column, ZIP packaging, or validate-and-reupload step. The system:
+`Section`/`Stem` are accepted aliases for Category/Question. Legacy Module columns are accepted for standalone imports; **Create Examination requires one module per sheet**. A correct-answer value like `A` gives single choice; `A;C` gives multiple choice. Multiple-choice marking requires the selected set to exactly match the correct set; no partial credit is awarded.
 
-- generates a unique question code;
-- treats one correct letter as `SINGLE` and multiple letters as `MULTIPLE`;
-- assigns 1 mark and medium difficulty;
-- imports every question as `DRAFT`;
-- creates missing modules/categories;
-- uses `General` when Category is blank.
+Choose pictures in the same upload form. The image column matches a selected filename (or its stem without the extension); supply alt text that conveys the diagram without giving away the answer. Spreadsheet limit: 12 MB; each picture: 5 MB; total exam import: 25 MB.
 
-### The ten columns
+**Standalone Import** stores draft questions for review. Dashboard/attempt-start requests no longer silently publish drafts, rename/reparent questions or lower the exam question count. Review/publish questions deliberately in administration.
 
-| Column | Rule |
-|---|---|
-| `Module` | Required. Human-readable name, for example `Air Law`. |
-| `Category` | Optional. Blank becomes `General`. |
-| `Question` | Required question text. |
-| `Option A`, `Option B` | Required. |
-| `Option C`, `Option D` | Optional. |
-| `Correct Answer` | `B` for one answer; `A,C` for multiple answers. In a hand-written CSV, quote comma-containing values or use `A;C`. |
-| `Image` | Optional exact selected filename, for example `chart-04.png`. |
-| `Image Description` | Required only with an image; describe it without revealing the answer. |
+**Create Examination** imports and publishes only the questions from that sheet; unrelated drafts remain untouched. Set duration (1–480 minutes), pass mark, attempt count, shuffling, optional schedule and selected active students. If the valid published pool is smaller than the configured question count, repair it before opening the exam rather than expecting an automatic shorter exam.
 
-Imports are atomic: if one row or picture is invalid, no question from that upload is created.
+Availability uses the configured academy timezone (default Africa/Harare). Future exams are hidden until their schedule opens; expired exam cards are hidden unless an open attempt remains. Extra time is set on the assignment in administration.
 
-## Instructor: create and assign an exam
+## Students taking an exam
 
-1. Add an **Exam** as `DRAFT`.
-2. Select one module. Release 1 draws from all valid, published questions in that module.
-3. Set duration, count, pass mark, maximum attempts and optional availability dates.
-4. Choose shuffling and whether answers may be reviewed after submission.
-5. Publish only when the pool contains enough valid questions.
-6. Add one **Assignment** per candidate. Use `extra_time_minutes` for an approved accommodation.
+1. Sign in and open **Dashboard**. Only explicitly assigned exams are accessible.
+2. Start/resume the attempt. Starting again resumes the existing snapshot; time continues while disconnected.
+3. Choose one or all answers as instructed. Watch for **Saved** and use normal **Save & next** submission if autosave fails.
+4. Use the numbered question navigator and review flags while the attempt remains open.
+5. Review unanswered/flagged questions and submit. The server deadline is authoritative; late attempts are marked expired.
+6. View score, category breakdown and PDF result slip. Correct answers appear only when answer review is enabled.
 
-The pass mark defaults to 75% but is not hard-coded as a legal rule. Use the academy's approved requirement.
+## Instructor previews and records
 
-## Instructor: monitor results
+Staff can view a student question page in read-only preview. It does not autosave, change flags, set first-viewed timestamps or finish the student's attempt. The preview can display an expired-but-not-yet-finalized snapshot without mutating it; the student workflow performs expiry.
 
-- **Attempts** is read-only and shows status, percentage and pass/fail.
-- **Audit events** records attempt start/submission/expiry and result-PDF downloads.
-- Run `python manage.py verify_audit_chain` periodically and after restore.
-- Candidate answer review is governed per exam. Keep it off when questions will be reused and disclosure is inappropriate.
+Results/audit records are read-only. CSV exports are available to authorized admin users. Exams that have attempts cannot be permanently deleted via the app; change their status to Closed. Retention deletion is a separate administrative policy, not a routine UI action.
 
-## Candidate workflow
+## Content and accessibility checks
 
-1. Sign in with issued username/email and password.
-2. The dashboard shows assigned exams, availability, duration, pass mark and attempts remaining.
-3. **Start examination** creates the timed attempt. Starting again resumes it; it does not create or reshuffle another sitting.
-4. Read the type instruction. Circles mean one answer; squares mean all applicable answers.
-5. Selecting an answer triggers autosave. Confirm the status says **Saved**. **Save & next** also posts the answer normally.
-6. Use numbered navigation and **Flag for review**.
-7. The displayed timer is synchronized to the server. If it reaches zero, the server closes and marks the attempt.
-8. On final review, check unanswered/flagged counts and submit. Submission is irreversible.
-9. View the recorded score, topic breakdown and PDF result slip. Correct answers appear only if the instructor enabled review.
-
-## Connection loss
-
-Sign in again on the same or another supported browser. The dashboard offers **Resume attempt** and the same question/option order. Time continues while disconnected because the deadline is server-owned. Very late offline changes cannot be accepted after expiry.
-
-## Image-authoring checklist
-
-- Is the image legally reusable and free of personal data?
-- Is all necessary text legible on a phone/tablet?
-- Does colour have a redundant label/pattern?
-- Does alt text convey the information needed by a candidate who cannot see it, without giving away the answer?
-- Is the image free of answer ticks, instructor annotations and metadata-based spoilers?
-- Does the rendered preview preserve orientation and aspect ratio?
+Use legally reusable images, legible mobile text and redundant labels instead of color alone. Provide meaningful alternative text without hints. Test keyboard navigation, screen readers and lesson/PDF content on your target devices. The platform's styles/labels support accessibility, but passing automated tests is not an independent accessibility certification or aviation-regulator approval.

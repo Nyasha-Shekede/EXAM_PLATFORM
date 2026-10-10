@@ -15,6 +15,12 @@ class SignUpForm(UserCreationForm):
         model = get_user_model()
         fields = ("username", "email", "first_name", "last_name", "password1", "password2")
 
+    def clean_username(self):
+        username = super().clean_username()
+        if get_user_model().objects.filter(username__iexact=username).exists():
+            raise ValidationError("An account already uses this username.")
+        return username
+
     def clean_email(self):
         email = self.cleaned_data["email"].strip().lower()
         if get_user_model().objects.filter(email__iexact=email).exists():
@@ -40,7 +46,13 @@ class ModuleForm(forms.ModelForm):
         widgets = {"description": forms.Textarea(attrs={"rows": 5})}
 
     def clean_code(self):
-        return self.cleaned_data["code"].strip().upper()
+        if self.instance.pk and self.fields["code"].disabled:
+            return self.instance.pk
+        code = self.cleaned_data["code"].strip().upper()
+        import re
+        if not re.fullmatch(r"[A-Z0-9][A-Z0-9_-]*", code) or code == "NEW":
+            raise ValidationError("Use letters, numbers, underscores or hyphens; NEW is reserved.")
+        return code
 
 
 class LessonForm(forms.ModelForm):
@@ -51,13 +63,13 @@ class LessonForm(forms.ModelForm):
 
     def clean_attachment(self):
         file = self.cleaned_data.get("attachment")
-        limit = 4 if getattr(settings, "VERCEL", False) else 10
-        if file and file.size > limit * 1024 * 1024:
-            raise ValidationError(f"Attachments must be {limit} MB or smaller.")
+        limit = settings.LESSON_UPLOAD_MAX_BYTES
+        if file and file.size > limit:
+            raise ValidationError(f"Attachments must be {limit // (1024 * 1024)} MB or smaller.")
         return file
 
     def clean(self):
         data = super().clean()
-        if not data.get("content", "").strip() and not data.get("attachment") and not (self.instance.pk and self.instance.attachment):
+        if not data.get("content", "").strip() and not data.get("attachment"):
             raise ValidationError("Add lesson text or an attachment.")
         return data

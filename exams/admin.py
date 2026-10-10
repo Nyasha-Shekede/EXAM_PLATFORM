@@ -3,11 +3,20 @@ from django.contrib import admin
 from django.contrib.auth.models import User, Group
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
+from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.shortcuts import redirect
 from django.utils.html import format_html
 from .models import Module, Category, Question, Option, Exam, Assignment, Attempt, AuditEvent
 from .services import validate_question
+
+def safe_csv_cell(value):
+    """Prevent spreadsheet formula execution in exported user-controlled text."""
+    if isinstance(value, str) and value.lstrip().startswith(("=", "+", "-", "@")):
+        return "'" + value
+    if isinstance(value, str) and value.startswith(("\t", "\r", "\n")):
+        return "'" + value
+    return value
 
 # Unregister default User and Group to eliminate bloated permissions and complex forms
 admin.site.unregister(Group)
@@ -74,6 +83,18 @@ class CustomUserCreationForm(forms.ModelForm):
         model = User
         fields = ("username", "first_name", "last_name", "email", "role")
 
+    def clean_username(self):
+        username = self.cleaned_data["username"].strip()
+        if User.objects.filter(username__iexact=username).exists():
+            raise ValidationError("An account already uses this username.")
+        return username
+
+    def clean_email(self):
+        email = self.cleaned_data["email"].strip().lower()
+        if User.objects.filter(email__iexact=email).exists():
+            raise ValidationError("An account already uses this email address.")
+        return email
+
     def clean(self):
         cleaned_data = super().clean()
         role = cleaned_data.get("role", "student")
@@ -82,8 +103,7 @@ class CustomUserCreationForm(forms.ModelForm):
         if role == "instructor" and p1:
             if p1 != p2:
                 raise ValidationError("Instructor passwords do not match.")
-            if len(p1) < 8:
-                raise ValidationError("Instructor password must be at least 8 characters long.")
+            validate_password(p1, user=User(username=cleaned_data.get("username", ""), email=cleaned_data.get("email", "")))
         return cleaned_data
 
     def save(self, commit=True):
@@ -136,6 +156,12 @@ class CustomUserChangeForm(UserChangeForm):
         if self.instance and self.instance.pk:
             self.fields["role"].initial = "instructor" if (self.instance.is_staff or self.instance.is_superuser) else "student"
 
+    def clean_email(self):
+        email = self.cleaned_data.get("email", "").strip().lower()
+        if email and User.objects.filter(email__iexact=email).exclude(pk=self.instance.pk).exists():
+            raise ValidationError("An account already uses this email address.")
+        return email
+
     def clean_password(self):
         return self.initial.get("password")
 
@@ -157,12 +183,28 @@ class CustomUserAdmin(BaseUserAdmin):
     add_form = CustomUserCreationForm
     actions = ["delete_selected", "send_password_reset_email"]
 
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs if request.user.is_superuser else qs.filter(is_staff=False, is_superuser=False)
+
+    def has_change_permission(self, request, obj=None):
+        if obj and not request.user.is_superuser and (obj.is_staff or obj.is_superuser):
+            return False
+        return super().has_change_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        if obj and not request.user.is_superuser and (obj.is_staff or obj.is_superuser):
+            return False
+        return super().has_delete_permission(request, obj)
+
     @admin.action(description="Send Password Setup / Reset email to selected users")
     def send_password_reset_email(self, request, queryset):
         from .emailing import welcome
         base_url = request.build_absolute_uri("/").rstrip("/")
         sent = 0
         for u in queryset:
+            if not request.user.is_superuser and (u.is_staff or u.is_superuser):
+                continue
             if u.email:
                 welcome(u, base_url, password_setup=True)
                 sent += 1
@@ -180,6 +222,11 @@ class CustomUserAdmin(BaseUserAdmin):
 
     def save_model(self, request, obj, form, change):
         # Prevent non-superusers from creating or promoting instructors
+        if change and not request.user.is_superuser:
+            original = User.objects.get(pk=obj.pk)
+            if original.is_staff or original.is_superuser:
+                from django.core.exceptions import PermissionDenied
+                raise PermissionDenied("Only administrators can edit instructor/administrator accounts.")
         if not request.user.is_superuser:
             role = form.cleaned_data.get("role", "student")
             if role == "instructor" or obj.is_staff or obj.is_superuser:
@@ -323,6 +370,9 @@ class AttemptAdmin(admin.ModelAdmin):
     def has_change_permission(self, request, obj=None):
         return False
 
+    def has_delete_permission(self, request, obj=None):
+        return False
+
     @admin.action(description="Export selected submissions to CSV")
     def export_as_csv(self, request, queryset):
         import csv
@@ -332,7 +382,7 @@ class AttemptAdmin(admin.ModelAdmin):
         writer = csv.writer(response)
         writer.writerow(["ID", "Exam", "Candidate_Username", "Candidate_Name", "Attempt_No", "Status", "Score", "Max_Score", "Percentage", "Passed", "Started_At", "Submitted_At", "Verification_Code"])
         for a in queryset.select_related("exam", "candidate"):
-            writer.writerow([
+            writer.writerow([safe_csv_cell(value) for value in [
                 str(a.id),
                 a.exam.title,
                 a.candidate.username,
@@ -346,7 +396,7 @@ class AttemptAdmin(admin.ModelAdmin):
                 a.started_at.isoformat() if a.started_at else "",
                 a.submitted_at.isoformat() if a.submitted_at else "",
                 a.verification_code,
-            ])
+            ]])
         return response
 
 @admin.register(AuditEvent)
@@ -377,7 +427,7 @@ class AuditEventAdmin(admin.ModelAdmin):
         writer = csv.writer(response)
         writer.writerow(["ID", "Timestamp_UTC", "Actor", "Action", "Object_Type", "Object_ID", "IP_Address", "Details", "Event_Hash", "Previous_Hash"])
         for e in queryset.select_related("actor"):
-            writer.writerow([
+            writer.writerow([safe_csv_cell(value) for value in [
                 e.id,
                 e.at.isoformat() if e.at else "",
                 e.actor.username if e.actor else "System",
@@ -388,7 +438,7 @@ class AuditEventAdmin(admin.ModelAdmin):
                 json.dumps(e.details or {}),
                 e.event_hash,
                 e.previous_hash,
-            ])
+            ]])
         return response
 
 

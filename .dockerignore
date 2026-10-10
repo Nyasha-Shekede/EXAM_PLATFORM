@@ -1,0 +1,13 @@
+.git
+.env
+.env.*
+*.patch
+**/__pycache__
+**/*.pyc
+*.sqlite3
+media
+staticfiles
+.venv
+venv
+.pytest_cache
+docs/http-smoke

@@ -2,45 +2,28 @@ import os
 from pathlib import Path
 import dj_database_url
 BASE_DIR = Path(__file__).resolve().parent.parent
+# Render supplies these variables; local development remains opt-in and disposable.
+RENDER = os.getenv("RENDER", "").lower() in {"true", "1"}
+DEBUG = os.getenv("DEBUG", "0" if RENDER else "1") == "1"
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-only-change-me")
-DEBUG = os.getenv("DEBUG", "1") == "1"
-ALLOWED_HOSTS = [x.strip() for x in os.getenv("ALLOWED_HOSTS", "*" if DEBUG and not os.getenv("VERCEL") else "").split(",") if x.strip()]
+ALLOWED_HOSTS = [x.strip() for x in os.getenv("ALLOWED_HOSTS", "*" if DEBUG else "").split(",") if x.strip()]
 CSRF_TRUSTED_ORIGINS = [x.strip() for x in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",") if x.strip()]
-
-# Automatic Render Platform Support
-RENDER = bool(os.getenv("RENDER"))
-render_hostname = os.getenv("RENDER_EXTERNAL_HOSTNAME")
-if render_hostname:
-    if render_hostname not in ALLOWED_HOSTS:
-        ALLOWED_HOSTS.append(render_hostname)
-    render_origin = f"https://{render_hostname}"
-    if render_origin not in CSRF_TRUSTED_ORIGINS:
-        CSRF_TRUSTED_ORIGINS.append(render_origin)
-
-if "https://*.onrender.com" not in CSRF_TRUSTED_ORIGINS:
-    CSRF_TRUSTED_ORIGINS.append("https://*.onrender.com")
-
-if (RENDER or not DEBUG) and ".onrender.com" not in ALLOWED_HOSTS:
-    ALLOWED_HOSTS.append(".onrender.com")
-
-for _origin in [
-    "https://*.cloudspaces.litng.ai",
-    "https://*.litng.ai",
-    "https://*.lightning.ai",
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-    "http://localhost:8080",
-    "http://127.0.0.1:8080",
-]:
-    if _origin not in CSRF_TRUSTED_ORIGINS:
-        CSRF_TRUSTED_ORIGINS.append(_origin)
+RENDER_EXTERNAL_HOSTNAME = os.getenv("RENDER_EXTERNAL_HOSTNAME", "").strip()
+if RENDER_EXTERNAL_HOSTNAME:
+    if RENDER_EXTERNAL_HOSTNAME not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+    origin = f"https://{RENDER_EXTERNAL_HOSTNAME}"
+    if origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(origin)
+# Links in emails must be absolute and must not trust an arbitrary request Host.
+PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", f"https://{RENDER_EXTERNAL_HOSTNAME}" if RENDER_EXTERNAL_HOSTNAME else "").rstrip("/")
 
 INSTALLED_APPS = ["django.contrib.admin","django.contrib.auth","django.contrib.contenttypes","django.contrib.sessions","django.contrib.messages","django.contrib.staticfiles","exams"]
 MIDDLEWARE = ["django.middleware.security.SecurityMiddleware","whitenoise.middleware.WhiteNoiseMiddleware","django.contrib.sessions.middleware.SessionMiddleware","django.middleware.common.CommonMiddleware","django.middleware.csrf.CsrfViewMiddleware","django.contrib.auth.middleware.AuthenticationMiddleware","django.contrib.messages.middleware.MessageMiddleware","django.middleware.clickjacking.XFrameOptionsMiddleware"]
 ROOT_URLCONF = "config.urls"
 TEMPLATES = [{"BACKEND":"django.template.backends.django.DjangoTemplates","DIRS":[BASE_DIR/"templates"],"APP_DIRS":True,"OPTIONS":{"context_processors":["django.template.context_processors.request","django.template.context_processors.media","django.contrib.auth.context_processors.auth","django.contrib.messages.context_processors.messages","exams.context.site"]}}]
 WSGI_APPLICATION = "config.wsgi.application"
-DATABASES = {"default": dj_database_url.config(default=f"sqlite:///{BASE_DIR/'db.sqlite3'}", conn_max_age=0 if os.getenv("VERCEL") else 60, conn_health_checks=True)}
+DATABASES = {"default": dj_database_url.config(default=f"sqlite:///{BASE_DIR/'db.sqlite3'}", conn_max_age=60, conn_health_checks=True)}
 AUTH_PASSWORD_VALIDATORS = [{"NAME":"django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},{"NAME":"django.contrib.auth.password_validation.MinimumLengthValidator"},{"NAME":"django.contrib.auth.password_validation.CommonPasswordValidator"},{"NAME":"django.contrib.auth.password_validation.NumericPasswordValidator"}]
 LANGUAGE_CODE="en-gb"
 TIME_ZONE=os.getenv("TIME_ZONE","Africa/Harare")
@@ -51,13 +34,15 @@ STATIC_ROOT=BASE_DIR/"staticfiles"
 STATICFILES_DIRS=[BASE_DIR/"static"]
 STORAGES={"default":{"BACKEND":"django.core.files.storage.FileSystemStorage"},"staticfiles":{"BACKEND":("django.contrib.staticfiles.storage.StaticFilesStorage" if DEBUG else "whitenoise.storage.CompressedManifestStaticFilesStorage")}}
 MEDIA_URL="/protected-media/"
-MEDIA_ROOT=BASE_DIR/"media"
+MEDIA_ROOT=Path(os.getenv("MEDIA_ROOT", str(BASE_DIR/"media")))
 DEFAULT_AUTO_FIELD="django.db.models.BigAutoField"
 LOGIN_REDIRECT_URL="dashboard"
 LOGOUT_REDIRECT_URL="login"
 SITE_NAME = os.getenv("SITE_NAME", "Africa Drone Kings")
 SUPPORT_EMAIL = os.getenv("SUPPORT_EMAIL", "training@africadronekings.com")
 SECURE_PROXY_SSL_HEADER=("HTTP_X_FORWARDED_PROTO","https")
+# Render may probe the service over internal HTTP; only the non-sensitive health URL is exempt.
+SECURE_REDIRECT_EXEMPT = [r"^health/$"]
 SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "0" if DEBUG else "1") == "1"
 CSRF_COOKIE_SECURE = os.getenv("CSRF_COOKIE_SECURE", "0" if DEBUG else "1") == "1"
 CSRF_COOKIE_SAMESITE = "Lax"
@@ -92,23 +77,29 @@ if os.getenv("AWS_STORAGE_BUCKET_NAME"):
         "file_overwrite": False,
     }}
 
-VERCEL = bool(os.getenv("VERCEL"))
 PUBLIC_SIGNUP = os.getenv("PUBLIC_SIGNUP", "1") == "1"
+LESSON_UPLOAD_MAX_BYTES = 10 * 1024 * 1024
 
-# Serverless deployments must have durable database and upload storage.
-if VERCEL:
+# Prevent accidental development defaults on the public Render service.
+if RENDER:
+    from django.core.exceptions import ImproperlyConfigured
     if DEBUG:
-        raise RuntimeError("Set DEBUG=0 on Vercel")
-    if not os.getenv("DATABASE_URL") or not os.getenv("AWS_STORAGE_BUCKET_NAME"):
-        raise RuntimeError("Vercel requires DATABASE_URL and AWS_STORAGE_BUCKET_NAME (private S3-compatible bucket)")
-    if not os.getenv("SECRET_KEY") or SECRET_KEY == "dev-only-change-me":
-        raise RuntimeError("Set a strong SECRET_KEY for Vercel")
-    host = os.getenv("VERCEL_URL", "")
-    if host and host not in ALLOWED_HOSTS:
-        ALLOWED_HOSTS.append(host)
-    if not ALLOWED_HOSTS or "*" in ALLOWED_HOSTS:
-        raise RuntimeError("Set ALLOWED_HOSTS or use the Vercel-provided VERCEL_URL")
-    if host and f"https://{host}" not in CSRF_TRUSTED_ORIGINS:
-        CSRF_TRUSTED_ORIGINS.append(f"https://{host}")
+        raise ImproperlyConfigured("Set DEBUG=0 on Render")
+    if SECRET_KEY == "dev-only-change-me" or len(SECRET_KEY) < 32:
+        raise ImproperlyConfigured("Set a strong, stable SECRET_KEY on Render")
+    if not ALLOWED_HOSTS or "*" in ALLOWED_HOSTS or ".onrender.com" in ALLOWED_HOSTS:
+        raise ImproperlyConfigured("Use explicit ALLOWED_HOSTS or Render's RENDER_EXTERNAL_HOSTNAME")
+    if DATABASES["default"]["ENGINE"] != "django.db.backends.postgresql":
+        raise ImproperlyConfigured("Render requires a managed PostgreSQL DATABASE_URL")
+    if not os.getenv("AWS_STORAGE_BUCKET_NAME") and not os.getenv("MEDIA_ROOT"):
+        raise ImproperlyConfigured("Configure private object storage or MEDIA_ROOT on a persistent Render disk")
     if not RESEND_API_KEY:
-        raise RuntimeError("Set RESEND_API_KEY for Vercel transactional emails")
+        raise ImproperlyConfigured("Set RESEND_API_KEY for production transactional emails")
+if PUBLIC_BASE_URL:
+    from urllib.parse import urlsplit
+    from django.core.exceptions import ImproperlyConfigured
+    parsed = urlsplit(PUBLIC_BASE_URL)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc or parsed.path or parsed.query or parsed.fragment or parsed.username:
+        raise ImproperlyConfigured("PUBLIC_BASE_URL must be an origin, e.g. https://academy.example.com")
+    if not DEBUG and parsed.scheme != "https":
+        raise ImproperlyConfigured("PUBLIC_BASE_URL must use HTTPS in production")

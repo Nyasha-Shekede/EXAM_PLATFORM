@@ -30,9 +30,21 @@ def _send(user_id, subject, body, html_body=None):
         logger.exception("Could not deliver transactional email to user id %s", user_id)
 
 
+def email_base_url(request=None):
+    """Prefer the configured public origin; never send relative links in emails."""
+    if settings.PUBLIC_BASE_URL:
+        return settings.PUBLIC_BASE_URL
+    if request is not None:
+        return request.build_absolute_uri("/").rstrip("/")
+    if settings.DEBUG:
+        return "http://localhost:8000"
+    raise ValueError("Set PUBLIC_BASE_URL for absolute transactional email links")
+
+
 def welcome(user, base_url, password_setup=False):
     """Send after commit; use a one-time password-set link, never a password."""
     user_id = user.pk
+    base_url = settings.PUBLIC_BASE_URL or base_url
 
     def deliver():
         current = get_user_model().objects.filter(pk=user_id).first()
@@ -73,30 +85,35 @@ def attempt_notice(attempt, event):
 
     def deliver():
         from .models import Attempt
-        current = Attempt.objects.select_related("exam", "exam__module", "candidate").get(pk=attempt_id)
+        current = Attempt.objects.select_related("exam", "exam__module", "candidate").filter(pk=attempt_id).first()
+        if not current:
+            return
         subject = f"Exam attempt {event} · {settings.SITE_NAME}"
-        render_host = getattr(settings, "RENDER_EXTERNAL_HOSTNAME", "")
-        base_url = f"https://{render_host}" if render_host else ""
+        try:
+            base_url = email_base_url()
+        except ValueError:
+            logger.exception("Could not create email links for attempt %s", attempt_id)
+            return
 
         ctx = {
             "user": current.candidate,
             "attempt": current,
             "exam": current.exam,
-            "duration_minutes": current.exam.duration_minutes,
+            "duration_minutes": round((current.expires_at - current.started_at).total_seconds() / 60),
             "site_name": settings.SITE_NAME,
             "support_email": getattr(settings, "SUPPORT_EMAIL", ""),
             "subject": subject,
         }
         if event == "started":
-            ctx["action_url"] = f"{base_url}{reverse('dashboard')}" if base_url else reverse("dashboard")
-            message = f"Your attempt for {current.exam.title} has started. Return to the academy to complete it."
+            ctx["action_url"] = base_url + reverse("dashboard")
+            message = f"Your attempt for {current.exam.title} has started. Return to the academy to complete it: {ctx['action_url']}"
             try:
                 html = render_to_string("emails/attempt_started.html", ctx)
             except Exception:
                 html = None
         else:
-            ctx["action_url"] = f"{base_url}{reverse('result', kwargs={'attempt_id': current.pk})}" if base_url else reverse("result", kwargs={"attempt_id": current.pk})
-            message = f"Your attempt for {current.exam.title} was received. View your result after signing in."
+            ctx["action_url"] = base_url + reverse("result", kwargs={"attempt_id": current.pk})
+            message = f"Your attempt for {current.exam.title} was received. View your result after signing in: {ctx['action_url']}"
             try:
                 html = render_to_string("emails/attempt_submitted.html", ctx)
             except Exception:

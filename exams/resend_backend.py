@@ -47,10 +47,10 @@ class ResendBackend(BaseEmailBackend):
                     response.read()
                 count += 1
             except HTTPError as e:
-                err_body = e.read().decode("utf-8", errors="replace")
-                logger.error("Resend API rejected email (HTTP %s): %s", e.code, err_body)
+                e.read()  # Do not echo API response payloads containing personal data into logs.
+                logger.error("Resend API rejected email (HTTP %s)", e.code)
                 if not self.fail_silently:
-                    raise RuntimeError(f"Resend rejected email (HTTP {e.code}): {err_body}") from e
+                    raise RuntimeError(f"Resend rejected email (HTTP {e.code}); check the Resend dashboard") from e
             except Exception:
                 if not self.fail_silently:
                     raise

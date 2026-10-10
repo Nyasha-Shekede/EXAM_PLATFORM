@@ -11,7 +11,7 @@ from .services import start_attempt, submit_attempt
 from .tests import Base
 
 
-@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend", PUBLIC_BASE_URL="https://academy.example.test")
 class LearningTests(TestCase):
     def setUp(self):
         self.teacher = get_user_model().objects.create_user("teacher", password="Strong-pass-222", is_staff=True)
@@ -104,7 +104,7 @@ class LearningTests(TestCase):
         self.assertNotIn("Strong-pass-331", mail.outbox[0].body)
 
 
-@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend", PUBLIC_BASE_URL="https://academy.example.test")
 class ExamMailTests(Base):
     def test_start_and_submit_send_exactly_once_after_commit(self):
         with self.captureOnCommitCallbacks(execute=True):

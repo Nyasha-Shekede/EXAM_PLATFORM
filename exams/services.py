@@ -3,7 +3,7 @@ from datetime import timedelta
 from decimal import Decimal, ROUND_HALF_UP
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import transaction, connection
 from django.db.models import Max
 from django.utils import timezone
 from .models import *
@@ -15,7 +15,13 @@ def client_user_agent(request):
     return (request.META.get("HTTP_USER_AGENT", "") or "")[:255] or None
 
 
+@transaction.atomic
 def audit(action,obj,actor=None,details=None,ip=None):
+    # Serialize the global chain across Render/Gunicorn workers, including its first row.
+    # Transaction-scoped PostgreSQL locks release on commit/rollback (no pool state leak).
+    if connection.vendor == "postgresql":
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT pg_advisory_xact_lock(%s)", [1094994763])
     last=AuditEvent.objects.order_by("-id").first(); prev=last.event_hash if last else ""
     at=timezone.now()
     payload={"previous_hash":prev,"at":at.isoformat(),"actor":getattr(actor,"pk",None),"action":action,"object_type":obj.__class__.__name__,"object_id":str(obj.pk),"details":details or {}}
@@ -31,101 +37,46 @@ def validate_question(question):
     return errors
 
 def sample_stratified_questions(questions, count, rng):
-    """
-    Balanced Stratified Section Sampling (Civil Aviation Exam Standard).
-    Samples questions fairly across all sections/categories in the pool,
-    guaranteeing that every syllabus area is tested without bias or omission.
-    """
-    if len(questions) <= count:
-        chosen = list(questions)
-        rng.shuffle(chosen)
-        return chosen
+    """Balance category counts where capacity allows; never exceed the target.
 
+    Tie-breaking is randomized. When count is smaller than the number of
+    categories, some categories necessarily remain untested. This is a sampling
+    policy, not a claim of compliance with a particular aviation standard.
+    """
+    if count < 0 or count > len(questions):
+        raise ValueError("Question target must fit the available pool")
     from collections import defaultdict
     by_category = defaultdict(list)
     for q in questions:
         by_category[q.category_id].append(q)
-
-    # Single category in pool: uniform random sampling
-    if len(by_category) <= 1:
-        return rng.sample(questions, count)
-
-    for cat_id in by_category:
-        rng.shuffle(by_category[cat_id])
-
-    targets = {}
-    available = {cat_id: len(qs) for cat_id, qs in by_category.items()}
-    remaining_needed = count
-    active_cats = set(by_category.keys())
-
-    # Distribute quotas iteratively so smaller sections contribute all they have
-    # and larger sections absorb the remaining deficit evenly
-    while remaining_needed > 0 and active_cats:
-        fair_share = max(1, remaining_needed // len(active_cats))
-        capped = False
-        for cat_id in list(active_cats):
-            avail = available[cat_id] - targets.get(cat_id, 0)
-            if avail <= fair_share:
-                alloc = avail
-                targets[cat_id] = targets.get(cat_id, 0) + alloc
-                remaining_needed -= alloc
-                active_cats.remove(cat_id)
-                capped = True
-        if not capped:
-            for cat_id in list(active_cats):
-                alloc = min(fair_share, remaining_needed)
-                targets[cat_id] = targets.get(cat_id, 0) + alloc
-                remaining_needed -= alloc
-                if targets[cat_id] >= available[cat_id]:
-                    active_cats.remove(cat_id)
-                if remaining_needed == 0:
-                    break
-
-    if remaining_needed > 0:
-        for cat_id, qs in by_category.items():
-            can_take = len(qs) - targets.get(cat_id, 0)
-            take = min(can_take, remaining_needed)
-            targets[cat_id] = targets.get(cat_id, 0) + take
-            remaining_needed -= take
-            if remaining_needed == 0:
-                break
-
+    for group in by_category.values():
+        rng.shuffle(group)
+    targets = {key: 0 for key in by_category}
     chosen = []
-    for cat_id, target in targets.items():
-        chosen.extend(by_category[cat_id][:target])
-
+    for _ in range(count):
+        eligible = [key for key, group in by_category.items() if targets[key] < len(group)]
+        minimum = min(targets[key] for key in eligible)
+        key = rng.choice([key for key in eligible if targets[key] == minimum])
+        chosen.append(by_category[key][targets[key]])
+        targets[key] += 1
     rng.shuffle(chosen)
     return chosen
 
-def reconcile_exam_pools():
-    """
-    Self-healing routine:
-    1. Ensures draft questions are published.
-    2. Heals modules with zero questions if questions exist under similar module titles (e.g. Meterology vs Meteorology).
-    3. Heals exams with question_count=0 so candidates always receive their full question set.
-    """
-    from django.db.models import Q
-    for exam in Exam.objects.select_related("module").all():
-        Question.objects.filter(module=exam.module, status=Question.DRAFT).update(status=Question.PUBLISHED)
-        pool_count = Question.objects.filter(module=exam.module, status=Question.PUBLISHED).count()
-        if pool_count == 0:
-            stem = exam.module.code[:4] if len(exam.module.code) >= 4 else exam.module.code
-            similar = Module.objects.filter(
-                Q(code__icontains=stem) | Q(title__icontains=stem)
-            ).exclude(code=exam.module.code)
-            for sm in similar:
-                sm_qs = Question.objects.filter(module=sm)
-                if sm_qs.exists():
-                    sm_qs.update(module=exam.module, status=Question.PUBLISHED)
-                    pool_count = Question.objects.filter(module=exam.module, status=Question.PUBLISHED).count()
-                    break
-        if pool_count > 0 and (exam.question_count == 0 or exam.question_count > pool_count):
-            exam.question_count = pool_count
-            exam.save(update_fields=["question_count"])
-
-@transaction.atomic
 def start_attempt(exam, candidate, ip=None, user_agent=None):
-    reconcile_exam_pools()
+    # Expiry must survive a "no attempts remain" error; catch validation before
+    # leaving the transaction, then raise only after committing the expiry record.
+    error = None
+    with transaction.atomic():
+        try:
+            result = _start_attempt(exam, candidate, ip=ip, user_agent=user_agent)
+        except ValidationError as exc:
+            error = exc
+    if error is not None:
+        raise error
+    return result
+
+
+def _start_attempt(exam, candidate, ip=None, user_agent=None):
     exam.refresh_from_db()
     assignment = Assignment.objects.select_for_update().filter(exam=exam, candidate=candidate, active=True).first()
     if not assignment:
@@ -134,11 +85,9 @@ def start_attempt(exam, candidate, ip=None, user_agent=None):
         raise ValidationError("This exam is not currently available.")
     current = Attempt.objects.select_for_update().filter(exam=exam, candidate=candidate, status=Attempt.IN_PROGRESS).first()
     if current:
-        # Discard broken attempt if created with 0 questions due to previous pool mismatch
         if current.attempt_questions.count() == 0:
-            current.delete()
-            current = None
-        elif current.is_open:
+            raise ValidationError("This attempt has no question snapshot. Contact your instructor; records have been preserved.")
+        if current.is_open:
             return current
         else:
             submit_attempt(current, expired=True, actor=candidate, ip=ip, user_agent=user_agent)
@@ -149,8 +98,9 @@ def start_attempt(exam, candidate, ip=None, user_agent=None):
     valid = [q for q in pool if not validate_question(q)]
     if not valid:
         raise ValidationError(f"No published questions are available yet in '{exam.module.title}'. Contact your instructor.")
-    q_target = min(exam.question_count or len(valid), len(valid))
-    q_target = max(1, q_target)
+    q_target = exam.question_count
+    if q_target < 1 or len(valid) < q_target:
+        raise ValidationError(f"This exam requires {q_target} valid published questions; only {len(valid)} are ready. Contact your instructor.")
     rng = secrets.SystemRandom()
     chosen = sample_stratified_questions(valid, q_target, rng)
     if not exam.shuffle_questions:
@@ -175,44 +125,48 @@ def start_attempt(exam, candidate, ip=None, user_agent=None):
     return attempt
 
 def save_response(attempt,aq,selected_keys,actor=None,ip=None,user_agent=None):
+    if aq.attempt_id != attempt.pk:
+        raise ValidationError("Question does not belong to this attempt.")
     if actor and actor != attempt.candidate:
         raise ValidationError("Security violation: Only the assigned candidate can submit responses for this attempt.")
     with transaction.atomic():
         locked=Attempt.objects.select_for_update().get(pk=attempt.pk)
         closed=locked.status!=Attempt.IN_PROGRESS or timezone.now()>=locked.expires_at
+        if closed and locked.status==Attempt.IN_PROGRESS:
+            submit_attempt(locked,expired=True,actor=actor,ip=ip,user_agent=user_agent)
+        if closed:
+            response = None
+        else:
+            valid=set(aq.snapshot_options.values_list("display_key",flat=True)); selected=sorted(set(selected_keys))
+            if not set(selected)<=valid: raise ValidationError("Invalid option selection.")
+            if aq.question_type==Question.SINGLE and len(selected)>1: raise ValidationError("Select one option only.")
+            response,_=Response.objects.update_or_create(attempt_question=aq,defaults={"selected_keys":selected,"is_correct":None,"awarded_marks":None})
+            aq.last_saved_at=timezone.now(); aq.save(update_fields=["last_saved_at"])
+
+            # Detect and audit mid-exam IP shifts
+            if ip:
+                started_ev = AuditEvent.objects.filter(action="ATTEMPT_STARTED", object_id=str(attempt.pk)).first()
+                if started_ev and started_ev.ip_address and started_ev.ip_address != ip:
+                    if not AuditEvent.objects.filter(action="SUSPICIOUS_IP_CHANGE", object_id=str(attempt.pk), ip_address=ip).exists():
+                        audit("SUSPICIOUS_IP_CHANGE", attempt, actor, {
+                            "original_ip": started_ev.ip_address,
+                            "new_ip": ip,
+                            "user_agent": user_agent,
+                            "question_position": aq.position,
+                        }, ip=ip)
+
     if closed:
-        if locked.status==Attempt.IN_PROGRESS: submit_attempt(locked,expired=True,actor=actor,ip=ip,user_agent=user_agent)
         raise ValidationError("The attempt is closed.")
-    with transaction.atomic():
-        locked=Attempt.objects.select_for_update().get(pk=attempt.pk)
-        if locked.status!=Attempt.IN_PROGRESS or timezone.now()>=locked.expires_at:
-            raise ValidationError("The attempt is closed.")
-        valid=set(aq.snapshot_options.values_list("display_key",flat=True)); selected=sorted(set(selected_keys))
-        if not set(selected)<=valid: raise ValidationError("Invalid option selection.")
-        if aq.question_type==Question.SINGLE and len(selected)>1: raise ValidationError("Select one option only.")
-        response,_=Response.objects.update_or_create(attempt_question=aq,defaults={"selected_keys":selected,"is_correct":None,"awarded_marks":None})
-        aq.last_saved_at=timezone.now(); aq.save(update_fields=["last_saved_at"])
-
-        # Detect and audit mid-exam IP shifts
-        if ip:
-            started_ev = AuditEvent.objects.filter(action="ATTEMPT_STARTED", object_id=str(attempt.pk)).first()
-            if started_ev and started_ev.ip_address and started_ev.ip_address != ip:
-                if not AuditEvent.objects.filter(action="SUSPICIOUS_IP_CHANGE", object_id=str(attempt.pk), ip_address=ip).exists():
-                    audit("SUSPICIOUS_IP_CHANGE", attempt, actor, {
-                        "original_ip": started_ev.ip_address,
-                        "new_ip": ip,
-                        "user_agent": user_agent,
-                        "question_position": aq.position,
-                    }, ip=ip)
-
-        return response
+    return response
 
 @transaction.atomic
 def submit_attempt(attempt,expired=False,actor=None,ip=None,user_agent=None):
     attempt=Attempt.objects.select_for_update().get(pk=attempt.pk)
     if attempt.status!=Attempt.IN_PROGRESS: return attempt
-    if not expired and actor and actor != attempt.candidate:
+    if actor and actor != attempt.candidate:
         raise ValidationError("Security violation: Only the assigned candidate can finish this attempt.")
+    # The deadline is authoritative even when callers forget to request expiry.
+    expired = expired or timezone.now() >= attempt.expires_at
     total=Decimal("0"); maximum=Decimal("0")
     for aq in attempt.attempt_questions.prefetch_related("snapshot_options").all():
         maximum += aq.marks

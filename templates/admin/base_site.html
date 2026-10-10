@@ -21,7 +21,7 @@
   </form>
 {% endblock %}
 
-{% block nav-global %}{% endblock %}
+{% block nav-global %}<nav class="academy-admin-nav" aria-label="Academy navigation"><a href="{% url 'dashboard' %}">Dashboard</a><a href="{% url 'module_catalog' %}">Modules</a><a href="{% url 'module_create' %}">Create module</a></nav>{% endblock %}
 {% block breadcrumbs %}{% endblock %}
 
 {% block extrahead %}
@@ -403,6 +403,16 @@
     height: 16px !important;
     cursor: pointer !important;
   }
+  .academy-admin-nav { display:flex; flex-wrap:wrap; gap:1rem; padding:0 1rem; }
+  .academy-admin-nav a { color:#0f172a !important; font-weight:700; text-decoration:none; }
+  .academy-admin-nav a:hover { color:#1483c6 !important; text-decoration:underline; }
+  :focus-visible { outline:3px solid #005b99 !important; outline-offset:3px; }
+  input[type=text], input[type=email], input[type=password], select, textarea {
+    border:1.5px solid #cbd5e1 !important; border-radius:7px !important;
+    padding:9px !important; background:#fff !important; color:#0f172a !important;
+  }
+  .aligned .form-row { border-bottom:1px solid #e2e8f0 !important; padding:1rem !important; }
+  @media(max-width:800px) { #header { flex-wrap:wrap; gap:1rem; } .academy-admin-nav { order:3; width:100%; } #content { padding:1rem !important; } }
   .timezonewarning, #footer, footer {
     display: none !important;
   }

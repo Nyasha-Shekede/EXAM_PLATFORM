@@ -18,6 +18,7 @@
       <img src="{% static 'img/adk-logo.png' %}" alt="Africa Drone Kings" class="brand-logo">
     </a>
     {% if user.is_authenticated %}
+    <nav class="app-nav" aria-label="Primary navigation"><a href="{% url 'dashboard' %}">Dashboard</a><a href="{% url 'module_catalog' %}">Modules</a></nav>
     <div class="user">
       <span class="role-badge">{% if user.is_staff %}Instructor{% else %}Student{% endif %}</span>
       <form method="post" action="{% url 'logout' %}">

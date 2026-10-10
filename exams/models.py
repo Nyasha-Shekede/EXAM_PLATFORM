@@ -12,9 +12,29 @@ from django.utils import timezone
 class Module(models.Model):
     code=models.CharField(max_length=30,primary_key=True)
     title=models.CharField(max_length=150)
+    description=models.TextField(blank=True)
+    instructor=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.SET_NULL,null=True,blank=True,related_name="modules_taught")
     default_pass_mark=models.DecimalField(max_digits=5,decimal_places=2,default=75,validators=[MinValueValidator(0),MaxValueValidator(100)])
     active=models.BooleanField(default=True)
     def __str__(self): return f"{self.code} — {self.title}"
+
+class Lesson(models.Model):
+    module=models.ForeignKey(Module,on_delete=models.CASCADE,related_name="lessons")
+    title=models.CharField(max_length=180)
+    content=models.TextField(blank=True,help_text="Plain text lesson content (no HTML).")
+    attachment=models.FileField(upload_to="lesson_files/%Y/%m/",blank=True,validators=[FileExtensionValidator(["pdf","png","jpg","jpeg","txt"])])
+    position=models.PositiveIntegerField(default=1)
+    published=models.BooleanField(default=False)
+    created_at=models.DateTimeField(auto_now_add=True)
+    class Meta: ordering=["position","id"]
+    def __str__(self): return self.title
+
+class Enrollment(models.Model):
+    module=models.ForeignKey(Module,on_delete=models.CASCADE,related_name="enrollments")
+    student=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.CASCADE,related_name="enrollments")
+    enrolled_at=models.DateTimeField(auto_now_add=True)
+    class Meta: constraints=[models.UniqueConstraint(fields=["module","student"],name="unique_module_enrollment")]
+    def __str__(self): return f"{self.student} / {self.module}"
 
 class Category(models.Model):
     module=models.ForeignKey(Module,on_delete=models.PROTECT,related_name="categories")

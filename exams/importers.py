@@ -252,7 +252,7 @@ def import_simple_questions(spreadsheet, image_uploads, user, default_module=Non
         question = Question.objects.create(
             code=code, module=module, category=category,
             question_type=item["question_type"], stem=item["stem"],
-            marks=1, difficulty="MEDIUM", status=Question.PUBLISHED,
+            marks=1, difficulty="MEDIUM", status=Question.DRAFT,
             image_alt_text=item["image_alt_text"], created_by=user,
         )
         Option.objects.bulk_create([

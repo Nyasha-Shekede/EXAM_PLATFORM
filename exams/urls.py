@@ -1,8 +1,18 @@
 from django.urls import path
-from . import views
+from . import views, learning_views
 urlpatterns = [
     path("", views.home, name="home"),
     path("dashboard/", views.dashboard, name="dashboard"),
+    path("signup/", learning_views.signup, name="signup"),
+    path("modules/", learning_views.module_catalog, name="module_catalog"),
+    path("modules/new/", learning_views.module_create, name="module_create"),
+    path("modules/<str:code>/", learning_views.module_detail, name="module_detail"),
+    path("modules/<str:code>/edit/", learning_views.module_edit, name="module_edit"),
+    path("modules/<str:code>/enroll/", learning_views.enroll, name="enroll"),
+    path("modules/<str:code>/lessons/new/", learning_views.lesson_edit, name="lesson_create"),
+    path("modules/<str:code>/lessons/<int:lesson_id>/edit/", learning_views.lesson_edit, name="lesson_edit"),
+    path("modules/<str:code>/lessons/<int:lesson_id>/", learning_views.lesson_detail, name="lesson_detail"),
+    path("modules/<str:code>/lessons/<int:lesson_id>/attachment/", learning_views.lesson_attachment, name="lesson_attachment"),
     path("exams/new/", views.create_exam_view, name="create_exam"),
     path("exams/<uuid:exam_id>/delete/", views.delete_exam, name="delete_exam"),
     path("candidates/quick-add/", views.quick_add_candidate, name="quick_add_candidate"),

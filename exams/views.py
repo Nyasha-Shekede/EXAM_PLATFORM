@@ -9,7 +9,6 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.core.files.storage import default_storage
 from django.views.decorators.http import require_POST
-from django.views.decorators.csrf import csrf_exempt
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.comments import Comment
@@ -42,6 +41,9 @@ def dashboard(request):
         is_expired = bool(a.exam.available_until and now > a.exam.available_until)
         is_upcoming = bool(a.exam.available_from and now < a.exam.available_from)
 
+        # Hide exams that are past their availability window unless an attempt is still open.
+        if is_expired and not open_attempt:
+            continue
         # Complete stealth: If exam has not opened yet and candidate has no active attempt, conceal it
         if is_upcoming and not open_attempt:
             continue
@@ -199,7 +201,6 @@ def protected_media(request,path):
     content_type={".png":"image/png",".jpg":"image/jpeg",".jpeg":"image/jpeg",".webp":"image/webp"}.get(p.suffix.lower(),"application/octet-stream")
     return FileResponse(default_storage.open(path,"rb"),content_type=content_type)
 
-@csrf_exempt
 @user_passes_test(staff_required)
 def import_view(request):
     result = None
@@ -270,7 +271,6 @@ def template_download(request):
     return response
 
 
-@csrf_exempt
 @user_passes_test(staff_required)
 def create_exam_view(request):
     import uuid, re
@@ -354,7 +354,6 @@ def create_exam_view(request):
     return render(request, "exams/create_exam.html", {"form": form, "existing_modules": existing_modules})
 
 
-@csrf_exempt
 @user_passes_test(staff_required)
 @require_POST
 def delete_exam(request, exam_id):
@@ -367,7 +366,6 @@ def delete_exam(request, exam_id):
     return redirect("dashboard")
 
 
-@csrf_exempt
 @user_passes_test(staff_required)
 @require_POST
 def quick_add_candidate(request):
@@ -405,11 +403,13 @@ def quick_add_candidate(request):
         last_name=last_name,
         is_staff=False,
     )
+    from .emailing import welcome
+    if email:
+        welcome(user, request.build_absolute_uri("/").rstrip("/"), password_setup=True)
     return JsonResponse({
         "ok": True,
         "id": user.pk,
         "label": f"{user.get_full_name() or user.username} ({user.username})",
         "username": user.username,
-        "default_password": password,
     })
 

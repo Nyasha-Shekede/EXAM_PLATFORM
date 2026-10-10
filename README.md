@@ -1,6 +1,6 @@
 # Drone Academy Examination System
 
-A focused, single-academy web application for creating, delivering, marking and auditing drone ground-school examinations. It has **no payments, subscriptions, packages, marketplace, self-service registration, advertising or multi-tenant SaaS machinery**.
+A single-academy Django learning and examination application. Instructors can create modules and publish lessons/resources; students can create accounts, enroll in training modules, and take explicitly assigned examinations. No payments, subscriptions or multi-tenant SaaS machinery are included.
 
 ## What is included
 
@@ -15,8 +15,10 @@ A focused, single-academy web application for creating, delivering, marking and 
 - exact-match automatic marking (no partial credit);
 - results by category, optional answer review and PDF result slips;
 - attempt snapshots, HMAC result-verification codes and a hash-linked application audit trail;
-- responsive candidate UI and built-in Django instructor administration;
-- Docker/PostgreSQL production packaging and 20 automated tests.
+- responsive learning and exam UI, instructor module/lesson authoring, private course attachments, and styled Django administration;
+- student self-registration and password recovery with transactional emails via Resend (console email in local development);
+- 1-click Render blueprint (`render.yaml`), Docker/PostgreSQL packaging, and optional serverless Vercel adapter.
+
 
 ## Quick evaluation (Docker)
 
@@ -43,6 +45,13 @@ make superuser                       # create your production administrator
 
 The Compose service binds only to `127.0.0.1:8000`. Put an HTTPS reverse proxy (Nginx or Caddy) in front of it. Read [Deployment and operations](docs/OPERATIONS.md) before going live.
 
+## Learning workflow
+
+Instructors sign in and use **Create Module** from the dashboard or `/modules/`. Add plain-text lessons and optional private attachments, then publish each lesson. Students register via `/signup/`, open **Modules**, enroll in an active module, and view published lessons. Existing exam assignment remains separate from enrollment: instructors choose who can attempt an exam.
+
+Existing demonstration accounts are for local evaluation only. For a production deployment use your own database, rotate the shipped `.env` credentials, and review [Render deployment](docs/RENDER_DEPLOYMENT.md), [Vercel deployment](docs/VERCEL_DEPLOYMENT.md) or [Docker operations](docs/OPERATIONS.md).
+
+
 ## Instructor workflow
 
 1. Create candidate users in **Administration → Users**.
@@ -58,6 +67,7 @@ The Compose service binds only to `127.0.0.1:8000`. Put an HTTPS reverse proxy (
 - [System architecture and data model](docs/ARCHITECTURE.md)
 - [Instructor and candidate guide](docs/USER_GUIDE.md)
 - [Deployment, security and backup runbook](docs/OPERATIONS.md)
+- [Vercel deployment and external services](docs/VERCEL_DEPLOYMENT.md)
 - [Test report](docs/TEST_REPORT.md)
 - Simple ten-column import template: sign in as staff and visit `/staff/import/template.xlsx`
 

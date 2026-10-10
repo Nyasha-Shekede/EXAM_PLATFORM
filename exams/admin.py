@@ -127,6 +127,12 @@ class CustomUserAdmin(BaseUserAdmin):
     add_form = CustomUserCreationForm
     actions = ["delete_selected"]
 
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        if not change and obj.email:
+            from .emailing import welcome
+            welcome(obj, request.build_absolute_uri("/").rstrip("/"), password_setup=True)
+
     list_display = ("username", "full_name_display", "email", "role_badge", "active_badge", "date_joined")
     list_filter = (UserRoleFilter, UserStatusFilter)
     search_fields = ("username", "first_name", "last_name", "email")

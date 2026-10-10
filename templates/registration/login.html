@@ -23,7 +23,8 @@
       Password
       {{ form.password }}
     </label>
-    <button class="primary" type="submit" style="margin-top: 0.5rem; padding: 0.9rem;">Sign In to Examination Portal</button>
+    <button class="primary" type="submit" style="margin-top: 0.5rem; padding: 0.9rem;">Sign in to the academy</button>
   </form>
+  <p><a href="{% url 'signup' %}">Create a student account</a> · <a href="{% url 'password_reset' %}">Forgot password?</a></p>
 </section>
 {% endblock %}

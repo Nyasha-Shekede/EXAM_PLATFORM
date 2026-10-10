@@ -162,6 +162,8 @@ def start_attempt(exam, candidate, ip=None):
         for idx, o in enumerate(opts):
             AttemptOption.objects.create(attempt_question=aq, display_key=chr(65+idx), text=o.text, is_correct=o.is_correct)
     audit("ATTEMPT_STARTED", attempt, candidate, {"expires_at": attempt.expires_at.isoformat(), "question_count": len(chosen)}, ip)
+    from .emailing import attempt_notice
+    attempt_notice(attempt, "started")
     return attempt
 
 def save_response(attempt,aq,selected_keys,actor=None,ip=None):
@@ -204,6 +206,8 @@ def submit_attempt(attempt,expired=False,actor=None,ip=None):
     attempt.score=total; attempt.max_score=maximum; attempt.percentage=pct; attempt.passed=passed; attempt.submitted_at=submitted; attempt.status=Attempt.EXPIRED if expired else Attempt.SUBMITTED; attempt.verification_code=code
     attempt.save(update_fields=["score","max_score","percentage","passed","submitted_at","status","verification_code"])
     audit("ATTEMPT_EXPIRED" if expired else "ATTEMPT_SUBMITTED",attempt,actor,{"score":str(total),"max_score":str(maximum),"percentage":str(pct),"passed":passed},ip)
+    from .emailing import attempt_notice
+    attempt_notice(attempt, "submitted")
     return attempt
 
 def verify_audit_chain():

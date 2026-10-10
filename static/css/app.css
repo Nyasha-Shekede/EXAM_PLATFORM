@@ -1036,3 +1036,28 @@ div.breadcrumbs,
   color: #dc2626;
 }
 
+
+/* Academy learning flow: keyboard-friendly, responsive, and consistent with the exam UI. */
+.app-nav { display:flex; flex-wrap:wrap; align-items:center; gap:1rem; margin-left:auto; padding:0 1rem; }
+.app-nav a { color:var(--ink); font-weight:700; text-decoration:none; }
+.app-nav a:hover, .app-nav a:focus-visible { color:var(--adk-blue); text-decoration:underline; }
+.learning-banner, .learning-panel { background:var(--white); border:1px solid var(--line-strong); border-radius:14px; padding:clamp(1.1rem,3vw,2rem); margin:1.2rem 0; box-shadow:0 3px 15px rgba(15,23,42,.045); }
+.learning-banner { display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; }
+.learning-banner h1 { margin:.2rem 0; }
+.learning-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr)); gap:1rem; }
+.learning-grid .learning-panel { margin:0; }
+.learning-actions { display:flex; flex-wrap:wrap; gap:.7rem; }
+.auth-panel { max-width:700px; margin:2rem auto; }
+.eyebrow { font-size:.75rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--adk-blue); }
+.preline { white-space:pre-wrap; overflow-wrap:anywhere; }
+.lesson-content { line-height:1.8; margin:1.5rem 0; }
+.lesson-list { padding-left:1.5rem; line-height:2.4; }
+.lesson-list li { padding:.2rem .5rem; border-bottom:1px solid var(--line); }
+.lesson-list li span { margin-left:1rem; }
+.field label { display:block; font-weight:700; margin-bottom:.35rem; }
+.field input:not([type=checkbox]), .field textarea, .field select { display:block; width:100%; max-width:100%; box-sizing:border-box; padding:.7rem; border:1.5px solid var(--line-strong); border-radius:7px; background:var(--white); color:var(--ink); font:inherit; }
+.field input[type=checkbox] { width:auto; accent-color:var(--adk-blue); }
+.field small { display:block; margin-top:.35rem; color:var(--muted, #475569); }
+.field-error { color:#a11b31; font-weight:700; }
+:focus-visible { outline:3px solid #005b99; outline-offset:3px; }
+@media (max-width:650px) { .top { flex-wrap:wrap; gap:.4rem; } .app-nav { order:3; width:100%; margin:0; padding:.5rem 0; } }

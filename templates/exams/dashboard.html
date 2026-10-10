@@ -2,6 +2,7 @@
 {% block title %}Dashboard · Africa Drone Kings{% endblock %}
 
 {% block content %}
+<section class="learning-banner"><div><p class="eyebrow">Africa Drone Kings Academy</p><h1>Learn, practice, and assess</h1><p>Access your lessons and training materials in one place.</p></div><a class="primary" href="{% url 'module_catalog' %}">Browse modules</a></section>
 {% if staff_summary %}
 <!-- ====================================================
      INSTRUCTOR / STAFF OVERVIEW
@@ -42,6 +43,7 @@
     <h2 class="section-title">Examinations</h2>
     <div style="display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap;">
       <a class="primary" href="{% url 'admin:auth_user_changelist' %}" style="padding: 0.55rem 1.1rem; font-size: 0.82rem;">Edit Users</a>
+      <a class="primary" href="{% url 'module_create' %}">Create Module</a>
       <a class="primary" href="{% url 'create_exam' %}" style="padding: 0.55rem 1.1rem; font-size: 0.82rem;">Create Examination</a>
       <a class="primary" href="{% url 'admin:exams_auditevent_changelist' %}" style="padding: 0.55rem 1.1rem; font-size: 0.82rem;">Audit Logs</a>
     </div>

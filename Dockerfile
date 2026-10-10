@@ -5,8 +5,10 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
+RUN chmod +x /app/entrypoint.sh /app/build.sh 2>/dev/null || true
 RUN mkdir -p /app/staticfiles /app/media && chown -R app:app /app
 USER app
 RUN DEBUG=0 SECRET_KEY=build-only-not-used-at-runtime python manage.py collectstatic --noinput
-EXPOSE 8000
-CMD ["gunicorn","config.wsgi:application","--bind","0.0.0.0:8000","--workers","3","--timeout","60","--access-logfile","-"]
+EXPOSE 8000 10000
+ENTRYPOINT ["/app/entrypoint.sh"]
+

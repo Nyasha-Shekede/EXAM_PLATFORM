@@ -1,0 +1,63 @@
+# ==============================================================================
+# Render Infrastructure Blueprint (render.yaml)
+# Docs: https://render.com/docs/blueprint-spec
+# ==============================================================================
+services:
+  - type: web
+    name: exam-platform
+    runtime: docker
+    plan: free # Change to 'starter' ($7/mo) if you want persistent disk or 24/7 uptime
+    region: frankfurt # Or oregon, ohio, singapore
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /
+    envVars:
+      - key: DEBUG
+        value: "0"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: exam-platform-db
+          property: connectionString
+      - key: TIME_ZONE
+        value: Africa/Harare
+      - key: SITE_NAME
+        value: Africa Drone Kings
+      - key: SUPPORT_EMAIL
+        value: training@africadronekings.com
+      - key: DEV_ADMIN_USERNAME
+        value: admin
+      - key: DEV_ADMIN_EMAIL
+        value: admin@africadronekings.com
+      - key: DEV_ADMIN_PASSWORD
+        generateValue: true # Render auto-generates a secure admin password in your dashboard
+      - key: PUBLIC_SIGNUP
+        value: "1"
+      - key: SECURE_SSL_REDIRECT
+        value: "1"
+      - key: SESSION_COOKIE_SECURE
+        value: "1"
+      - key: CSRF_COOKIE_SECURE
+        value: "1"
+      # Optional: Transactional Emails with Resend
+      - key: RESEND_API_KEY
+        sync: false # Prompts you to fill in your key in Render dashboard
+      - key: DEFAULT_FROM_EMAIL
+        value: Africa Drone Kings <training@africadronekings.com>
+      # Optional: Object Storage (MinIO or AWS S3)
+      # If using Render's Starter plan, you can attach a persistent disk instead.
+      - key: AWS_STORAGE_BUCKET_NAME
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_S3_ENDPOINT_URL
+        sync: false
+
+databases:
+  - name: exam-platform-db
+    plan: free # Render provides free managed PostgreSQL
+    region: frankfurt
+    databaseName: drone_exams
+    user: postgres

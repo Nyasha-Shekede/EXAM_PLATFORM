@@ -1,5 +1,3 @@
-> Historical reference analysis: the current app now includes student registration and learning modules. Use README, ARCHITECTURE and USER_GUIDE for current behavior.
-
 # Reference-system analysis and scope decision
 
 ## Material reviewed

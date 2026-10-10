@@ -4,7 +4,7 @@
 {% block title %}Question {{ q.position }} · {{ attempt.exam.title }}{% endblock %}
 
 {% block head %}
-{% if not preview %}<script defer src="{% static 'js/exam.js' %}"></script>{% endif %}
+<script defer src="{% static 'js/exam.js' %}"></script>
 {% endblock %}
 
 {% block header %}{% endblock %}
@@ -15,12 +15,10 @@
   <div>
     <h1>{{ attempt.exam.title }}</h1>
   </div>
-  {% if preview %}<p class="notice">Read-only instructor preview · <a href="{% url 'dashboard' %}">Dashboard</a></p>{% else %}
   <div class="timer" data-now="{{ now_epoch }}" data-expires="{{ expires_epoch }}" data-finish="{% url 'confirm_submit' attempt.id %}">
     <span>Time remaining</span>
     <strong id="timer">--:--</strong>
   </div>
-{% endif %}
 </div>
 
 <div class="examgrid">
@@ -66,7 +64,7 @@
 
     <form id="answer-form" method="post" action="{% url 'answer' attempt.id q.position %}">
       {% csrf_token %}
-      <fieldset class="options" {% if preview %}disabled{% endif %}>
+      <fieldset class="options">
         <legend class="sr-only">Answer choices</legend>
         {% for o in q.snapshot_options.all %}
         <label class="option">
@@ -77,7 +75,6 @@
         {% endfor %}
       </fieldset>
 
-      {% if not preview %}
       <div id="save-state" aria-live="polite">Answers save automatically.</div>
 
       <div class="actions">
@@ -93,7 +90,6 @@
         <button name="next" value="submit" class="primary">Review & submit</button>
         {% endif %}
       </div>
-      {% endif %}
     </form>
   </section>
 </div>

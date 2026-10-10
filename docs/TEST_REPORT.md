@@ -1,43 +1,71 @@
-# Executed verification report
+# Verification and test report
 
-**Review date:** 2026-10-10 UTC
-**Runtime:** Python 3.13 / Django 5.2.17
-**Test database:** ephemeral SQLite (no live Render database used)
+**Execution date:** 2026-09-27 UTC  
+**Runtime:** Python 3.13 / Django 5.2  
+**Command:** `python manage.py test exams --verbosity=2`  
+**Database:** clean ephemeral SQLite test database (production packaging uses PostgreSQL)
 
-## Baseline
+## Executed result
 
-`python manage.py test --verbosity=1` on the unchanged downloaded `main` source discovered 50 tests: **49 passed, 1 failed**. The failing test was staff access to a student question page (expected 200; received 404). Other production hazards were found by source inspection and addressed with regression tests, not by claiming the old suite covered them.
+- 30 tests discovered
+- 30 passed
+- 0 failed
+- Django system check: 0 issues
+- elapsed test time: 16.422 seconds
 
-## Reviewed source
+## Coverage by behaviour
 
-`python manage.py test --verbosity=1`: **76 discovered, 76 passed, 0 failed** in **37.907 seconds**. The added checks cover administrator bootstrap preservation, protected staff previews, draft publication/pool integrity, small-target category sampling, module-aligned imports, retained results, deadline persistence, account validation, absolute email links, safe forms, readiness and CSV formula neutralization. Existing exam/import/enrollment/Resend-mock tests continue to pass.
-
-| Check | Executed result |
+| Area | Executed checks |
 |---|---|
-| `manage.py check` | No issues |
-| `makemigrations --check --dry-run` | No changes detected |
-| `manage.py check --deploy` with placeholder Render production settings | Exit 0; one warning: HSTS preload intentionally opt-in |
-| Production `collectstatic --noinput` | 130 files copied, 388 post-processed; manifest created |
-| `python -m compileall -q config exams` | Passed |
-| Render/Compose YAML parsing | Passed (syntax only, not service provisioning) |
-| `sh -n entrypoint.sh`, `bash -n build.sh` | Passed |
-| Entrypoint custom-command bypass | Passed; no migrations/bootstrap invoked |
-| Render unsafe configuration import checks | Rejected debug mode, SQLite, missing durable-media config, wildcard hostname, missing Resend key and insecure email origin |
-| README logo path | Existing `static/img/adk-logo.png` verified |
+| Question rules | Rejects a multiple-choice item with fewer than two correct options. |
+| Attempt creation | Creates exact question/option snapshots; active page does not contain correctness fields/labels. |
+| Scoring | Full correct answer passes; incomplete multi-select receives zero under exact-match policy. |
+| Timing | Expired attempt rejects saves and transitions to `EXPIRED`. |
+| Recovery | Repeated start returns the same open attempt, preserving order/state. |
+| Limits/access | Maximum attempts enforced; unassigned candidate blocked; candidate cannot open another candidate's attempt. |
+| Historical integrity | Editing a source question does not alter an existing attempt snapshot. |
+| Audit | Start and submit events link; verification command logic returns valid. |
+| Web workflow | Dashboard, begin redirect, asynchronous answer save, email login, PDF generation and review policy. |
+| Imports | Simple ten-column sheet, automatic type/defaults/IDs, direct pictures without ZIP, one-step staff form, atomic invalid-row rejection, plus retained legacy-format safety checks. |
 
-The production checks used invented placeholder credentials solely for configuration validation; no provider connection or mail send was represented as successful. The Resend tests mock HTTP. Database health tests use the SQLite test connection and mocked failures.
+## Defect found and fixed during testing
 
-## Patch verification
+The first pass found three substantive issues:
 
-The delivered update is checked with `git apply --check` against a clean export of the downloaded baseline and applied to a fresh tree. Sensitive deleted files use forward-only binary deletion blocks (zero-length result) instead of including their former values. No schema migration is required by these changes.
+1. development/test static files incorrectly required a production manifest;
+2. an expiry transition was rolled back because a validation exception was raised inside the same transaction;
+3. one multi-choice test fixture sampled from a mixed random pool instead of isolating its target item.
 
-## Not executed / release gates
+I changed development storage selection, committed expiry before returning the closed-attempt error, corrected the fixture and reran the entire suite. All tests then passed; the suite now contains 30 checks, including seven focused checks for the simplified importer and direct-picture form path.
 
-- Live Render deployment, PostgreSQL concurrent-worker/load behavior or provider storage connectivity.
-- Docker image/container execution (Docker was unavailable in this environment).
-- Real Resend delivery, sending-domain DNS checks or durable retry behavior.
-- Current dependency/container vulnerability scan, penetration test, browser automation or independent accessibility audit.
-- Backup restore, secrets/history remediation or production data migration.
-- Aviation-regulator/accountable-instructor qualification of content or scoring.
+## HTTP workflow smoke test
 
-The older generated HTTP captures and stale checksum manifest were removed rather than treated as proof that the current app is browser-verified.
+I also ran the development server and exercised a real HTTP session with cookies and CSRF protection: login → dashboard → start → three shuffled questions → answer saves → confirmation → submission → 100.00% pass → PDF download (2,737 bytes) → review. Seven rendered HTML/PDF artifacts are in `docs/http-smoke/`. Full Chromium rendering was attempted but the execution container lacks required shared libraries and does not grant package-manager elevation; this is reported rather than misrepresented as a browser pass.
+
+## Additional executed checks
+
+The build process generated and applied migrations `0001` and `0002`; `python manage.py check` reported no issues. Production static collection and package/archive checks are recorded during final packaging.
+
+## Security and build checks
+
+- `bandit -r config exams -x exams/tests.py`: 0 findings.
+- `pip-audit -r requirements.txt`: no known vulnerabilities after upgrading Django to 5.2.17 and Pillow to 12.3.0.
+- Python bytecode compilation: passed.
+- Production `collectstatic`: 129 files copied, 387 post-processed; manifest created.
+- `manage.py check --deploy` with the hardened production profile: 0 issues.
+- Migration drift check: no changes detected.
+- Compose YAML parsed successfully. Docker itself was unavailable, so the image was not built in this environment.
+
+## What this does not establish
+
+The automated suite is meaningful but not a complete production qualification. It does not include:
+
+- PostgreSQL concurrency/load tests under the academy's expected simultaneous-start spike;
+- penetration testing, dependency/container vulnerability scanning or malware scanning;
+- independent accessibility audit;
+- all target browser/device combinations;
+- reverse-proxy/TLS/backup restoration in the academy's infrastructure;
+- regulator or accountable-manager validation of content/scoring;
+- disaster/outage exercises.
+
+These are explicit go-live gates in `OPERATIONS.md`, not claims silently implied by passing unit tests.

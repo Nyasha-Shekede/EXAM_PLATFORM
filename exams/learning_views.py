@@ -45,7 +45,7 @@ def module_detail(request, code):
     enrolled = Enrollment.objects.filter(module=module, student=request.user).exists()
     if not module.active and not can_edit(request.user, module):
         raise Http404
-    lessons = module.lessons.all() if can_edit(request.user, module) else module.lessons.filter(published=True) if enrolled else module.lessons.none()
+    lessons = module.lessons.all() if request.user.is_staff else module.lessons.filter(published=True) if enrolled else module.lessons.none()
     return render(request, "exams/module_detail.html", {"module": module, "enrolled": enrolled,
                                                          "lessons": lessons, "can_edit": can_edit(request.user, module)})
 

@@ -6,10 +6,10 @@ services:
   - type: web
     name: exam-platform
     runtime: docker
-    plan: free # Evaluation only; choose a current paid plan for production.
+    plan: free # Change to 'starter' ($7/mo) if you want persistent disk or 24/7 uptime
     region: frankfurt # Or oregon, ohio, singapore
     dockerfilePath: ./Dockerfile
-    healthCheckPath: /health/
+    healthCheckPath: /
     envVars:
       - key: DEBUG
         value: "0"
@@ -25,7 +25,12 @@ services:
         value: Africa Drone Kings
       - key: SUPPORT_EMAIL
         value: training@africadronekings.com
-      # Create the first administrator explicitly with `createsuperuser` in the service shell.
+      - key: DEV_ADMIN_USERNAME
+        value: admin
+      - key: DEV_ADMIN_EMAIL
+        value: admin@africadronekings.com
+      - key: DEV_ADMIN_PASSWORD
+        generateValue: true # Render auto-generates a secure admin password in your dashboard
       - key: PUBLIC_SIGNUP
         value: "1"
       - key: SECURE_SSL_REDIRECT
@@ -34,13 +39,13 @@ services:
         value: "1"
       - key: CSRF_COOKIE_SECURE
         value: "1"
-      # Required: verified Resend domain and API key
+      # Optional: Transactional Emails with Resend
       - key: RESEND_API_KEY
         sync: false # Prompts you to fill in your key in Render dashboard
       - key: DEFAULT_FROM_EMAIL
         value: Africa Drone Kings <training@africadronekings.com>
-      # Required for this blueprint: private object storage (S3-compatible)
-      # Alternatively remove bucket variables, attach a disk, and set MEDIA_ROOT to its mount.
+      # Optional: Object Storage (MinIO or AWS S3)
+      # If using Render's Starter plan, you can attach a persistent disk instead.
       - key: AWS_STORAGE_BUCKET_NAME
         sync: false
       - key: AWS_ACCESS_KEY_ID
@@ -52,7 +57,7 @@ services:
 
 databases:
   - name: exam-platform-db
-    plan: free # Evaluation only; verify retention/expiry and pricing before applying.
+    plan: free # Render provides free managed PostgreSQL
     region: frankfurt
     databaseName: drone_exams
     user: postgres

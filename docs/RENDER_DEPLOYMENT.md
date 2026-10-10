@@ -1,70 +1,99 @@
-# Render deployment and upgrade guide
+# Deploying the Exam & Academy Platform to Render
 
-This app is one Django monolith served by Gunicorn. Render runs the Docker web service; **PostgreSQL and uploads must be persistent**. A container's ordinary filesystem is ephemeral even on a paid web-service plan unless a persistent disk is attached.
+Render is the ideal host for this Django monolith: it provides real persistent containers, managed PostgreSQL, free HTTPS dev domains (`https://<your-app>.onrender.com`), and automatic deployments on every `git push`.
 
-## Existing service: apply this review safely
+---
 
-1. Back up the live PostgreSQL database and uploads. Record the current `SECRET_KEY` in a secret manager. Removing `.env` from Git does not change Render's stored environment variables, but a rebuild discards unmounted container files.
-2. Check Environment settings before redeploying:
-   - `DEBUG=0` and a strong stable `SECRET_KEY` (32+ characters).
-   - A **PostgreSQL** `DATABASE_URL`, not a SQLite path.
-   - `RESEND_API_KEY` and a verified `DEFAULT_FROM_EMAIL`.
-   - `AWS_STORAGE_BUCKET_NAME` with private bucket credentials **or** `MEDIA_ROOT` pointing to an attached persistent disk.
-   - `ALLOWED_HOSTS` with exact custom hostnames if you use them. Render's `RENDER_EXTERNAL_HOSTNAME` is automatically allowed. Remove `*` and `.onrender.com` wildcard values.
-   - Optional `CSRF_TRUSTED_ORIGINS` with your exact HTTPS origins; remove `https://*.onrender.com` and old preview-platform wildcards.
-   - `PUBLIC_BASE_URL=https://your-canonical-domain` for email links; defaults to Render's own HTTPS origin.
-3. The reviewed app now refuses unsafe Render configurations. If uploads currently live only in the container, copy them to the bucket/disk **before redeploying**. Preserve file names recorded in the database. Merely switching the storage backend does not copy old files.
-4. Remove `DEV_ADMIN_PASSWORD`/`ADMIN_PASSWORD` after the first account exists. `ensure_admin` accepts old variable names for compatibility, but never changes an existing administrator's password/profile or deletes demonstration records.
-5. Apply migrations as part of the release workflow. No schema migration is introduced by this patch; running `migrate --noinput` still checks any pending upstream migrations. With one web instance, startup migrations remain enabled by default. With multiple replicas, run a single migration job and set `RUN_MIGRATIONS=0` on web processes.
-6. Redeploy the **existing service**; do not apply a new Blueprint as a substitute for an upgrade unless you intend to create new resources. Check `/health/`, login, a lesson download, a test invitation and exam attempt email, then run `python manage.py verify_audit_chain`. Pre-existing broken audit links are reported, not rewritten.
+## Method 1: 1-Click Blueprint Deploy (Fastest & Recommended)
 
-## New service / Blueprint
+This repository includes a [`render.yaml`](file:///d:/Projects/EXAM_PLATFORM/render.yaml) blueprint file that automatically provisions both your **PostgreSQL database** and your **Web Service** with all required environment variables wired together.
 
-[`../render.yaml`](../render.yaml) describes a Docker web service and PostgreSQL database. It keeps evaluation plans rather than silently upgrading you to a paid plan. Verify current plan availability, database expiry/retention, disk support and pricing in Render before provisioning. Evaluation/free services are not a production availability guarantee.
+1. **Push your code to GitHub:**
+   ```bash
+   git add .
+   git commit -m "Configure production deployment for Render"
+   git push origin main
+   ```
 
-1. Connect the repository from Render's **New → Blueprint** flow, or create a Docker web service manually.
-2. Set the required storage and email secrets prompted by the Blueprint. Private object storage is the default Blueprint option; alternatively remove the bucket variables, attach a persistent disk and set `MEDIA_ROOT` to its mount path. A disk mount must be writable by the container's `app` user (UID 10001). Test write/read access after deployment.
-3. Keep the generated signing secret stable and save it in a secret manager. The build uses only a disposable build-time key for `collectstatic`; it does not migrate the database or create accounts.
-4. Create the first administrator in the Render service shell with `python manage.py createsuperuser`. If a shell is unavailable, temporarily set `ADMIN_USERNAME`, `ADMIN_EMAIL` and a strong `ADMIN_PASSWORD`; startup will create that account only if it does not exist. Remove the bootstrap password immediately afterward. No default administrator exists.
-5. Set the Health Check Path to `/health/` for the current service. Readiness checks the database and returns 503 when it is unavailable. It is the only URL exempted from HTTPS redirection for internal health probes.
+2. **Open Render Dashboard:**
+   * Go to [dashboard.render.com](https://dashboard.render.com).
+   * Click the **New +** button in the top right and select **Blueprint**.
+   * Connect your GitHub account and select your repository (`EXAM_PLATFORM`).
 
-## Environment reference
+3. **Deploy:**
+   * Render will detect `render.yaml` and show:
+     - **PostgreSQL Database:** `exam-platform-db`
+     - **Web Service:** `exam-platform`
+   * Click **Apply**.
+   * Render will automatically:
+     - Spin up the managed PostgreSQL database.
+     - Build the Docker container.
+     - Auto-generate a secure `SECRET_KEY` and `DEV_ADMIN_PASSWORD`.
+     - Wire `DATABASE_URL` directly from the database into the web service.
+     - Run `python manage.py migrate` and `python manage.py ensure_admin` on startup.
+     - Assign your free live URL: `https://exam-platform-xxxx.onrender.com`.
 
-Names are configuration interfaces, not values to commit. Keep actual secrets in Render.
+---
 
-| Name | Purpose |
-|---|---|
-| `DEBUG` | `0` in production |
-| `SECRET_KEY` | Strong stable signing secret |
-| `DATABASE_URL` | Render internal PostgreSQL connection string or other managed PostgreSQL URI |
-| `ALLOWED_HOSTS` | Comma-separated exact custom hostnames; Render hostname added automatically |
-| `CSRF_TRUSTED_ORIGINS` | Comma-separated exact HTTPS custom origins if needed |
-| `PUBLIC_BASE_URL` | Canonical HTTPS origin for emails, no path/query |
-| `RESEND_API_KEY` | Resend credential |
-| `DEFAULT_FROM_EMAIL` | Verified sender on your Resend domain |
-| `AWS_STORAGE_BUCKET_NAME` | Private object-storage bucket (if using S3-compatible storage) |
-| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | Least-privilege bucket credentials; AWS roles can replace these where supported |
-| `AWS_S3_ENDPOINT_URL`, `AWS_S3_REGION_NAME` | Provider-specific endpoint/region |
-| `AWS_S3_ADDRESSING_STYLE` | Optional addressing style; defaults to path for custom endpoints |
-| `MEDIA_ROOT` | Absolute mount path on an attached persistent disk, if not using object storage |
-| `PUBLIC_SIGNUP` | `1` by default; `0` disables public registration |
-| `RUN_MIGRATIONS` | `1` by default for single-instance startup; use `0` with a single release migration job |
-| `WEB_CONCURRENCY` | Gunicorn workers (default 3); tune to your Render memory/CPU budget |
-| `ADMIN_USERNAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Optional temporary one-time bootstrap only |
-| `SITE_NAME`, `SUPPORT_EMAIL`, `TIME_ZONE` | Branding and academy timezone (default Africa/Harare) |
+## Method 2: Manual Setup via Render Dashboard
 
-For an optional native-Python service, `bash build.sh` installs dependencies and collects static assets only. Run `sh entrypoint.sh` as the start command; for multiple replicas arrange migrations in a single release job. Native services should use a suitable `MEDIA_ROOT` or a private bucket just like Docker.
+If you prefer to create the services individually:
 
-## Email and uploads
+### 1. Create the PostgreSQL Database
+1. In Render, click **New +** -> **PostgreSQL**.
+2. Name: `exam-platform-db`
+3. Database: `drone_exams`
+4. User: `postgres`
+5. Plan: **Free** (or Starter for production).
+6. Click **Create Database**.
+7. Once created, copy the **Internal Database URL** (e.g. `postgres://postgres:...@dpg-...-a/drone_exams`).
 
-Verify your Resend domain and DNS records before using real student recipients. Test both HTML and plain-text messages. New staff-created students receive a password-set link, not a password; accounts with unusable passwords need an administrator to resend an invitation if their initial link expires (Django's ordinary reset form deliberately excludes unusable-password accounts).
+### 2. Create the Web Service
+1. Click **New +** -> **Web Service** -> select your repo.
+2. Runtime: **Docker**.
+3. Plan: **Free** (or Starter).
+4. In the **Environment Variables** section, add:
+   * `DEBUG` = `0`
+   * `SECRET_KEY` = *(Click "Generate" or paste a random string)*
+   * `DATABASE_URL` = *(Paste the Internal Database URL from step 1)*
+   * `TIME_ZONE` = `Africa/Harare`
+   * `DEV_ADMIN_USERNAME` = `admin`
+   * `DEV_ADMIN_PASSWORD` = `YourStrongAdminPassword`
+   * `DEV_ADMIN_EMAIL` = `admin@africadronekings.com`
+   * `RESEND_API_KEY` = *(Optional: your Resend key for transactional emails)*
+   * `DEFAULT_FROM_EMAIL` = `Africa Drone Kings <training@africadronekings.com>`
+   * `PUBLIC_SIGNUP` = `1`
+5. Click **Create Web Service**.
 
-Lesson downloads check enrollment and publication, or module ownership/administrator status. Keep buckets private and do not configure a public media CDN. Changing `MEDIA_ROOT` or bucket settings does not migrate existing uploads. Upload limits are 10 MB for lessons, 12 MB per spreadsheet, 5 MB per picture and 25 MB combined for exam imports. Validate your Render proxy and worker timeout against real workloads.
+---
 
-Emails are best-effort post-commit actions; failures are logged and do not undo accounts or grading. Use the admin resend action for invitations. Add a durable job queue/outbox if guaranteed retry is a requirement.
+## Admin Login Credentials
 
-## References
+When the web service launches, [`entrypoint.sh`](file:///d:/Projects/EXAM_PLATFORM/entrypoint.sh) runs:
+* `python manage.py migrate --noinput`
+* `python manage.py ensure_admin`
 
-- [Render Django deployment](https://render.com/docs/deploy-django)
-- [Render persistent disks](https://render.com/docs/disks)
-- [Render Blueprint reference](https://render.com/docs/blueprint-spec)
+Your superuser account will be ready immediately:
+* **Username:** `admin` (or whatever you set for `DEV_ADMIN_USERNAME`)
+* **Password:** The value of `DEV_ADMIN_PASSWORD` (if using Blueprint, check your Web Service's **Environment** tab in Render to see the auto-generated password).
+* **Admin URL:** `https://<your-service>.onrender.com/admin/`
+
+---
+
+## File Uploads & Media Storage Options
+
+Because this is a real Linux container, you have two flexible storage options:
+
+### Option A: Render Persistent Disk (Simplest, Zero External Services)
+* On Render's **Starter** plan ($7/mo), you can attach a persistent disk in the dashboard:
+  * Mount Path: `/app/media`
+  * Size: 1 GB (or more)
+* All uploaded exam questions, diagrams, and lesson files will stay permanently on disk without needing MinIO or S3.
+
+### Option B: Cloud Object Storage (MinIO or AWS S3 / Cloudflare R2)
+* If using the Free tier or cloud object storage, simply add these variables in Render:
+  * `AWS_STORAGE_BUCKET_NAME` = your bucket name
+  * `AWS_ACCESS_KEY_ID` = your key
+  * `AWS_SECRET_ACCESS_KEY` = your secret
+  * `AWS_S3_ENDPOINT_URL` = your endpoint (e.g. `https://minio.yourdomain.com` or `https://<id>.r2.cloudflarestorage.com`)
+  * `AWS_S3_REGION_NAME` = `us-east-1`

@@ -4,4 +4,4 @@ class Command(BaseCommand):
     help = "Deprecated: Demo data seeding has been permanently disabled."
 
     def handle(self, *args, **options):
-        self.stdout.write(self.style.WARNING("seed_demo is deprecated and disabled. Use createsuperuser or explicit one-time ensure_admin credentials instead."))
+        self.stdout.write(self.style.WARNING("seed_demo is deprecated and disabled. The system now uses ensure_admin to maintain the Dev Admin account."))
